@@ -1,0 +1,26 @@
+# Development Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+pyvenv.cfg
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
