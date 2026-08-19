@@ -18,4 +18,9 @@ public sealed class Absence
     public string? Reason { get; private set; }
 
     public string? Notes { get; private set; }
+
+    /// <summary>
+    /// Gets the PostgreSQL row version used for optimistic concurrency control.
+    /// </summary>
+    public uint Version { get; private set; }
 }

@@ -24,4 +24,9 @@ public sealed class WorkCalendarDay
     /// Gets an optional description associated with the date.
     /// </summary>
     public string? Description { get; private set; }
+
+    /// <summary>
+    /// Gets the PostgreSQL row version used for optimistic concurrency control.
+    /// </summary>
+    public uint Version { get; private set; }
 }
