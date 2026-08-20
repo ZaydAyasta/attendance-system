@@ -13,7 +13,11 @@ public sealed class AbsenceConfiguration
 {
     public void Configure(EntityTypeBuilder<Absence> builder)
     {
-        builder.ToTable("absences");
+        builder.ToTable(
+            "absences",
+            tableBuilder => tableBuilder.HasCheckConstraint(
+                "CK_absences_status",
+                "status IN ('Active', 'Cancelled')"));
 
         builder.HasKey(x => x.Id);
 

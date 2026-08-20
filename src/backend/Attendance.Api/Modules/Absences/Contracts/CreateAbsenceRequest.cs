@@ -5,6 +5,5 @@ public sealed record CreateAbsenceRequest(
     DateOnly StartDate,
     DateOnly EndDate,
     string? Type,
-    string? Status,
     string? Reason,
     string? Notes);

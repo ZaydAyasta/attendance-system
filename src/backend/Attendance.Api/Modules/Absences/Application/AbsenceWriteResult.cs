@@ -6,6 +6,7 @@ public enum AbsenceWriteStatus
     NotFound,
     EmployeeNotFound,
     EmployeeInactive,
+    InvalidState,
     OverlapConflict,
     ConcurrencyConflict
 }

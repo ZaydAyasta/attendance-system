@@ -7,12 +7,6 @@ namespace Attendance.Api.Modules.Absences.Application;
 
 public sealed class AbsenceService(AttendanceDbContext dbContext)
 {
-    private static readonly AbsenceStatus[] ActiveStatuses =
-    [
-        AbsenceStatus.Pending,
-        AbsenceStatus.Approved
-    ];
-
     public async Task<IReadOnlyList<AbsenceResponse>> ListAsync(
         AbsenceQueryFilters filters,
         CancellationToken cancellationToken)
@@ -80,8 +74,7 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
                 AbsenceWriteStatus.EmployeeInactive);
         }
 
-        if (ShouldCheckOverlap(command.Status)
-            && await HasActiveOverlapAsync(
+        if (await HasActiveOverlapAsync(
                 command.EmployeeId,
                 command.Period,
                 exclusionId: null,
@@ -95,7 +88,6 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
             command.EmployeeId,
             command.Period,
             command.Type,
-            command.Status,
             command.Reason,
             command.Notes);
 
@@ -127,8 +119,13 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
                 AbsenceWriteStatus.ConcurrencyConflict);
         }
 
-        if (ShouldCheckOverlap(command.Status)
-            && await HasActiveOverlapAsync(
+        if (absence.Status == AbsenceStatus.Cancelled)
+        {
+            return new AbsenceWriteResult<AbsenceResponse>(
+                AbsenceWriteStatus.InvalidState);
+        }
+
+        if (await HasActiveOverlapAsync(
                 absence.EmployeeId,
                 command.Period,
                 exclusionId: absence.Id,
@@ -141,7 +138,6 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
         absence.Update(
             command.Period,
             command.Type,
-            command.Status,
             command.Reason,
             command.Notes);
 
@@ -255,14 +251,11 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
             .AnyAsync(
                 x => x.EmployeeId == employeeId
                      && (!exclusionId.HasValue || x.Id != exclusionId.Value)
-                     && ActiveStatuses.Contains(x.Status)
+                     && x.Status == AbsenceStatus.Active
                      && x.Period.Start <= period.End
                      && x.Period.End >= period.Start,
                 cancellationToken);
     }
-
-    private static bool ShouldCheckOverlap(AbsenceStatus status)
-        => ActiveStatuses.Contains(status);
 
     private static System.Linq.Expressions.Expression<Func<Absence, AbsenceResponse>>
         MapExpression()

@@ -37,7 +37,6 @@ public sealed class Absence
         Guid employeeId,
         DateRange period,
         AbsenceType type,
-        AbsenceStatus status,
         string? reason,
         string? notes)
     {
@@ -45,7 +44,7 @@ public sealed class Absence
         EmployeeId = EnsureValidEmployeeId(employeeId);
         Period = period;
         Type = EnsureValidType(type);
-        Status = EnsureValidStatus(status);
+        Status = AbsenceStatus.Active;
         Reason = NormalizeText(reason, ReasonMaxLength, nameof(reason));
         Notes = NormalizeText(notes, NotesMaxLength, nameof(notes));
     }
@@ -54,7 +53,6 @@ public sealed class Absence
         Guid employeeId,
         DateRange period,
         AbsenceType type,
-        AbsenceStatus status,
         string? reason,
         string? notes)
         => new(
@@ -62,26 +60,29 @@ public sealed class Absence
             employeeId,
             period,
             type,
-            status,
             reason,
             notes);
 
     public void Update(
         DateRange period,
         AbsenceType type,
-        AbsenceStatus status,
         string? reason,
         string? notes)
     {
+        EnsureIsActive();
         Period = period;
         Type = EnsureValidType(type);
-        Status = EnsureValidStatus(status);
         Reason = NormalizeText(reason, ReasonMaxLength, nameof(reason));
         Notes = NormalizeText(notes, NotesMaxLength, nameof(notes));
     }
 
     public void Cancel()
     {
+        if (Status == AbsenceStatus.Cancelled)
+        {
+            return;
+        }
+
         Status = AbsenceStatus.Cancelled;
     }
 
@@ -110,17 +111,13 @@ public sealed class Absence
         return type;
     }
 
-    private static AbsenceStatus EnsureValidStatus(AbsenceStatus status)
+    private void EnsureIsActive()
     {
-        if (!Enum.IsDefined(status))
+        if (Status == AbsenceStatus.Cancelled)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(status),
-                status,
-                "Unsupported absence status.");
+            throw new InvalidOperationException(
+                "Cancelled absences cannot be modified.");
         }
-
-        return status;
     }
 
     private static string? NormalizeText(

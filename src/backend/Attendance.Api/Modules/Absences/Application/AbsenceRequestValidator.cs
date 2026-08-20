@@ -7,9 +7,7 @@ public static class AbsenceRequestValidator
 {
     private static readonly string[] AllowedStatuses =
     [
-        nameof(AbsenceStatus.Pending),
-        nameof(AbsenceStatus.Approved),
-        nameof(AbsenceStatus.Rejected),
+        nameof(AbsenceStatus.Active),
         nameof(AbsenceStatus.Cancelled)
     ];
 
@@ -91,7 +89,6 @@ public static class AbsenceRequestValidator
         ValidateNotes(request.Notes, errors);
 
         var type = ParseRequiredType(request.Type, errors);
-        var status = ParseRequiredStatus(request.Status, errors);
 
         return errors.Count == 0
             ? AbsenceValidationResult<CreateAbsenceCommand>.Success(
@@ -99,7 +96,6 @@ public static class AbsenceRequestValidator
                     request.EmployeeId,
                     new DateRange(request.StartDate, request.EndDate),
                     type,
-                    status,
                     NormalizeText(request.Reason),
                     NormalizeText(request.Notes)))
             : AbsenceValidationResult<CreateAbsenceCommand>.Failure(errors);
@@ -120,14 +116,12 @@ public static class AbsenceRequestValidator
         }
 
         var type = ParseRequiredType(request.Type, errors);
-        var status = ParseRequiredStatus(request.Status, errors);
 
         return errors.Count == 0
             ? AbsenceValidationResult<UpdateAbsenceCommand>.Success(
                 new UpdateAbsenceCommand(
                     new DateRange(request.StartDate, request.EndDate),
                     type,
-                    status,
                     NormalizeText(request.Reason),
                     NormalizeText(request.Notes),
                     request.Version))
@@ -236,21 +230,6 @@ public static class AbsenceRequestValidator
         }
 
         return type;
-    }
-
-    private static AbsenceStatus ParseRequiredStatus(
-        string? rawValue,
-        Dictionary<string, string[]> errors)
-    {
-        if (!TryParseStatus(rawValue, out var status))
-        {
-            errors["status"] =
-            [
-                $"Status must be one of: {string.Join(", ", AllowedStatuses)}."
-            ];
-        }
-
-        return status;
     }
 
     private static AbsenceType? ParseOptionalType(

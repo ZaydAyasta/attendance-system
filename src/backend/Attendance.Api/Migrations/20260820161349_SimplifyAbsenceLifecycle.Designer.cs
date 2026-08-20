@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Attendance.Api.BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Attendance.Api.Migrations
 {
     [DbContext(typeof(AttendanceDbContext))]
-    partial class AttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820161349_SimplifyAbsenceLifecycle")]
+    partial class SimplifyAbsenceLifecycle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

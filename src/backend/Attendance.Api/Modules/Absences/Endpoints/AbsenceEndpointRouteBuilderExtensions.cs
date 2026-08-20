@@ -161,6 +161,10 @@ public static class AbsenceEndpointRouteBuilderExtensions
         {
             AbsenceWriteStatus.Success => TypedResults.Ok(result.Value),
             AbsenceWriteStatus.NotFound => TypedResults.NotFound(),
+            AbsenceWriteStatus.InvalidState => TypedResults.Conflict(
+                CreateProblemDetails(
+                    "Absence is cancelled.",
+                    "Cancelled absences are historical records and cannot be modified.")),
             AbsenceWriteStatus.OverlapConflict => TypedResults.Conflict(
                 CreateProblemDetails(
                     "Absence overlap conflict.",

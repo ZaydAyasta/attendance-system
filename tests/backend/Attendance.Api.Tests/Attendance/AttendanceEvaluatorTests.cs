@@ -304,7 +304,6 @@ public sealed class AttendanceEvaluatorTests
             employeeId,
             new DateRange(date, date),
             absenceType,
-            AbsenceStatus.Approved,
             null,
             null);
 

@@ -6,14 +6,12 @@ public sealed record CreateAbsenceCommand(
     Guid EmployeeId,
     DateRange Period,
     AbsenceType Type,
-    AbsenceStatus Status,
     string? Reason,
     string? Notes);
 
 public sealed record UpdateAbsenceCommand(
     DateRange Period,
     AbsenceType Type,
-    AbsenceStatus Status,
     string? Reason,
     string? Notes,
     uint ExpectedVersion);

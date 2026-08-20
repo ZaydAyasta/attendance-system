@@ -12,7 +12,7 @@ namespace Attendance.Api.Tests.Absences;
 public sealed class AbsenceServiceTests
 {
     [Fact]
-    public async Task CreateAsync_CreatesValidAbsence()
+    public async Task CreateAsync_CreatesActiveAbsence()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
@@ -28,22 +28,16 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 10),
                     new DateOnly(2026, 8, 15)),
                 AbsenceType.Vacation,
-                AbsenceStatus.Approved,
                 "Vacaciones programadas",
                 "Opcional"),
             CancellationToken.None);
 
         Assert.Equal(AbsenceWriteStatus.Success, result.Status);
         Assert.NotNull(result.Value);
-        Assert.Equal(employeeId, result.Value!.EmployeeId);
-        Assert.Equal(new DateOnly(2026, 8, 10), result.Value.StartDate);
-        Assert.Equal(new DateOnly(2026, 8, 15), result.Value.EndDate);
-        Assert.Equal("Vacation", result.Value.Type);
-        Assert.Equal("Approved", result.Value.Status);
+        Assert.Equal("Active", result.Value!.Status);
 
         var entity = await dbContext.Absences.SingleAsync();
-        Assert.Equal(employeeId, entity.EmployeeId);
-        Assert.Equal(AbsenceStatus.Approved, entity.Status);
+        Assert.Equal(AbsenceStatus.Active, entity.Status);
     }
 
     [Fact]
@@ -59,7 +53,6 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 10),
                     new DateOnly(2026, 8, 15)),
                 AbsenceType.Vacation,
-                AbsenceStatus.Approved,
                 null,
                 null),
             CancellationToken.None);
@@ -85,7 +78,6 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 10),
                     new DateOnly(2026, 8, 15)),
                 AbsenceType.Permission,
-                AbsenceStatus.Pending,
                 null,
                 null),
             CancellationToken.None);
@@ -95,21 +87,17 @@ public sealed class AbsenceServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_ReturnsOverlapConflictWhenPendingAbsenceOverlaps()
+    public async Task CreateAsync_ReturnsOverlapConflictWhenActiveAbsenceOverlaps()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
         dbContext.Absences.Add(
-            Absence.Create(
+            CreateActiveAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Pending,
-                null,
-                null));
+                new DateOnly(2026, 8, 10),
+                new DateOnly(2026, 8, 15),
+                AbsenceType.Vacation));
         await dbContext.SaveChangesAsync();
 
         var service = new AbsenceService(dbContext);
@@ -121,82 +109,11 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 14),
                     new DateOnly(2026, 8, 20)),
                 AbsenceType.Commission,
-                AbsenceStatus.Approved,
                 null,
                 null),
             CancellationToken.None);
 
         Assert.Equal(AbsenceWriteStatus.OverlapConflict, result.Status);
-    }
-
-    [Fact]
-    public async Task CreateAsync_ReturnsOverlapConflictWhenApprovedAbsenceOverlaps()
-    {
-        await using var dbContext = await CreateDbContextAsync();
-        var employeeId = Guid.NewGuid();
-        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
-        dbContext.Absences.Add(
-            Absence.Create(
-                employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Approved,
-                null,
-                null));
-        await dbContext.SaveChangesAsync();
-
-        var service = new AbsenceService(dbContext);
-
-        var result = await service.CreateAsync(
-            new CreateAbsenceCommand(
-                employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 14),
-                    new DateOnly(2026, 8, 20)),
-                AbsenceType.Permission,
-                AbsenceStatus.Pending,
-                null,
-                null),
-            CancellationToken.None);
-
-        Assert.Equal(AbsenceWriteStatus.OverlapConflict, result.Status);
-    }
-
-    [Fact]
-    public async Task CreateAsync_RejectedAbsenceDoesNotBlockOverlap()
-    {
-        await using var dbContext = await CreateDbContextAsync();
-        var employeeId = Guid.NewGuid();
-        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
-        dbContext.Absences.Add(
-            Absence.Create(
-                employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Rejected,
-                null,
-                null));
-        await dbContext.SaveChangesAsync();
-
-        var service = new AbsenceService(dbContext);
-
-        var result = await service.CreateAsync(
-            new CreateAbsenceCommand(
-                employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 14),
-                    new DateOnly(2026, 8, 20)),
-                AbsenceType.Permission,
-                AbsenceStatus.Approved,
-                null,
-                null),
-            CancellationToken.None);
-
-        Assert.Equal(AbsenceWriteStatus.Success, result.Status);
     }
 
     [Fact]
@@ -206,15 +123,11 @@ public sealed class AbsenceServiceTests
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
         dbContext.Absences.Add(
-            Absence.Create(
+            CreateCancelledAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Cancelled,
-                null,
-                null));
+                new DateOnly(2026, 8, 10),
+                new DateOnly(2026, 8, 15),
+                AbsenceType.Vacation));
         await dbContext.SaveChangesAsync();
 
         var service = new AbsenceService(dbContext);
@@ -226,28 +139,27 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 14),
                     new DateOnly(2026, 8, 20)),
                 AbsenceType.Permission,
-                AbsenceStatus.Approved,
                 null,
                 null),
             CancellationToken.None);
 
         Assert.Equal(AbsenceWriteStatus.Success, result.Status);
+        Assert.NotNull(result.Value);
+        Assert.Equal("Active", result.Value!.Status);
     }
 
     [Fact]
-    public async Task UpdateAsync_ExcludesOwnAbsenceFromOverlapCheck()
+    public async Task UpdateAsync_PreservesActiveStatus()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absence = Absence.Create(
+        var absence = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
             AbsenceType.Vacation,
-            AbsenceStatus.Approved,
             "Vacaciones",
             null);
 
@@ -265,10 +177,50 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 10),
                     new DateOnly(2026, 8, 15)),
                 AbsenceType.Vacation,
-                AbsenceStatus.Approved,
                 "Cambio de texto",
                 null,
                 15u),
+            CancellationToken.None);
+
+        Assert.Equal(AbsenceWriteStatus.Success, result.Status);
+        Assert.Equal("Active", result.Value!.Status);
+
+        var persisted = await dbContext.Absences.SingleAsync(x => x.Id == absence.Id);
+        Assert.Equal(AbsenceStatus.Active, persisted.Status);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ExcludesOwnAbsenceFromOverlapCheck()
+    {
+        await using var dbContext = await CreateDbContextAsync();
+        var employeeId = Guid.NewGuid();
+        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
+
+        var absence = CreateActiveAbsence(
+            employeeId,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation,
+            "Vacaciones",
+            null);
+
+        dbContext.Absences.Add(absence);
+        await dbContext.SaveChangesAsync();
+        await SetVersionAsync(dbContext, absence.Id, 16u);
+        dbContext.ChangeTracker.Clear();
+
+        var service = new AbsenceService(dbContext);
+
+        var result = await service.UpdateAsync(
+            absence.Id,
+            new UpdateAbsenceCommand(
+                new DateRange(
+                    new DateOnly(2026, 8, 10),
+                    new DateOnly(2026, 8, 15)),
+                AbsenceType.Vacation,
+                "Cambio de texto",
+                null,
+                16u),
             CancellationToken.None);
 
         Assert.Equal(AbsenceWriteStatus.Success, result.Status);
@@ -281,25 +233,17 @@ public sealed class AbsenceServiceTests
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absenceToUpdate = Absence.Create(
+        var absenceToUpdate = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 1),
-                new DateOnly(2026, 8, 5)),
-            AbsenceType.Permission,
-            AbsenceStatus.Approved,
-            null,
-            null);
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 5),
+            AbsenceType.Permission);
 
-        var existingAbsence = Absence.Create(
+        var existingAbsence = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
-            AbsenceType.Vacation,
-            AbsenceStatus.Approved,
-            null,
-            null);
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
 
         dbContext.Absences.AddRange(absenceToUpdate, existingAbsence);
         await dbContext.SaveChangesAsync();
@@ -315,7 +259,6 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 14),
                     new DateOnly(2026, 8, 20)),
                 AbsenceType.Permission,
-                AbsenceStatus.Approved,
                 null,
                 null,
                 8u),
@@ -325,103 +268,68 @@ public sealed class AbsenceServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_RejectedResultDoesNotBlockOverlap()
+    public async Task UpdateAsync_ReturnsInvalidStateWhenAbsenceIsCancelled()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absenceToUpdate = Absence.Create(
+        var absence = CreateCancelledAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 1),
-                new DateOnly(2026, 8, 5)),
-            AbsenceType.Permission,
-            AbsenceStatus.Pending,
-            null,
-            null);
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
 
-        var existingAbsence = Absence.Create(
-            employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
-            AbsenceType.Vacation,
-            AbsenceStatus.Approved,
-            null,
-            null);
-
-        dbContext.Absences.AddRange(absenceToUpdate, existingAbsence);
+        dbContext.Absences.Add(absence);
         await dbContext.SaveChangesAsync();
-        await SetVersionAsync(dbContext, absenceToUpdate.Id, 18u);
+        await SetVersionAsync(dbContext, absence.Id, 17u);
         dbContext.ChangeTracker.Clear();
 
         var service = new AbsenceService(dbContext);
 
         var result = await service.UpdateAsync(
-            absenceToUpdate.Id,
+            absence.Id,
             new UpdateAbsenceCommand(
                 new DateRange(
-                    new DateOnly(2026, 8, 14),
-                    new DateOnly(2026, 8, 20)),
-                AbsenceType.Permission,
-                AbsenceStatus.Rejected,
+                    new DateOnly(2026, 8, 11),
+                    new DateOnly(2026, 8, 16)),
+                AbsenceType.Vacation,
+                "Cambio",
                 null,
-                null,
-                18u),
+                17u),
             CancellationToken.None);
 
-        Assert.Equal(AbsenceWriteStatus.Success, result.Status);
+        Assert.Equal(AbsenceWriteStatus.InvalidState, result.Status);
     }
 
     [Fact]
-    public async Task UpdateAsync_CancelledResultDoesNotBlockOverlap()
+    public async Task GetByIdAsync_ReturnsStatusForActiveAndCancelledAbsences()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absenceToUpdate = Absence.Create(
+        var activeAbsence = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 1),
-                new DateOnly(2026, 8, 5)),
-            AbsenceType.Permission,
-            AbsenceStatus.Pending,
-            null,
-            null);
-
-        var existingAbsence = Absence.Create(
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 2),
+            AbsenceType.Permission);
+        var cancelledAbsence = CreateCancelledAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
-            AbsenceType.Vacation,
-            AbsenceStatus.Approved,
-            null,
-            null);
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 11),
+            AbsenceType.Vacation);
 
-        dbContext.Absences.AddRange(absenceToUpdate, existingAbsence);
+        dbContext.Absences.AddRange(activeAbsence, cancelledAbsence);
         await dbContext.SaveChangesAsync();
-        await SetVersionAsync(dbContext, absenceToUpdate.Id, 19u);
-        dbContext.ChangeTracker.Clear();
 
         var service = new AbsenceService(dbContext);
 
-        var result = await service.UpdateAsync(
-            absenceToUpdate.Id,
-            new UpdateAbsenceCommand(
-                new DateRange(
-                    new DateOnly(2026, 8, 14),
-                    new DateOnly(2026, 8, 20)),
-                AbsenceType.Permission,
-                AbsenceStatus.Cancelled,
-                null,
-                null,
-                19u),
-            CancellationToken.None);
+        var activeResult = await service.GetByIdAsync(activeAbsence.Id, CancellationToken.None);
+        var cancelledResult = await service.GetByIdAsync(cancelledAbsence.Id, CancellationToken.None);
 
-        Assert.Equal(AbsenceWriteStatus.Success, result.Status);
+        Assert.Equal("Active", activeResult!.Status);
+        Assert.Equal("Cancelled", cancelledResult!.Status);
     }
 
     [Fact]
@@ -447,24 +355,16 @@ public sealed class AbsenceServiceTests
             CreateEmployee(otherEmployeeId, isActive: true));
 
         dbContext.Absences.AddRange(
-            Absence.Create(
+            CreateActiveAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Approved,
-                null,
-                null),
-            Absence.Create(
+                new DateOnly(2026, 8, 10),
+                new DateOnly(2026, 8, 15),
+                AbsenceType.Vacation),
+            CreateActiveAbsence(
                 otherEmployeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 20),
-                    new DateOnly(2026, 8, 25)),
-                AbsenceType.Permission,
-                AbsenceStatus.Pending,
-                null,
-                null));
+                new DateOnly(2026, 8, 20),
+                new DateOnly(2026, 8, 25),
+                AbsenceType.Permission));
         await dbContext.SaveChangesAsync();
 
         var service = new AbsenceService(dbContext);
@@ -485,24 +385,16 @@ public sealed class AbsenceServiceTests
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
         dbContext.Absences.AddRange(
-            Absence.Create(
+            CreateActiveAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Approved,
-                null,
-                null),
-            Absence.Create(
+                new DateOnly(2026, 8, 10),
+                new DateOnly(2026, 8, 15),
+                AbsenceType.Vacation),
+            CreateActiveAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 1),
-                    new DateOnly(2026, 8, 5)),
-                AbsenceType.Permission,
-                AbsenceStatus.Approved,
-                null,
-                null));
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 5),
+                AbsenceType.Permission));
         await dbContext.SaveChangesAsync();
 
         var service = new AbsenceService(dbContext);
@@ -521,6 +413,76 @@ public sealed class AbsenceServiceTests
     }
 
     [Fact]
+    public async Task ListAsync_FiltersByStatusActive()
+    {
+        await using var dbContext = await CreateDbContextAsync();
+        var employeeId = Guid.NewGuid();
+        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
+
+        dbContext.Absences.AddRange(
+            CreateActiveAbsence(
+                employeeId,
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 2),
+                AbsenceType.Permission),
+            CreateCancelledAbsence(
+                employeeId,
+                new DateOnly(2026, 8, 3),
+                new DateOnly(2026, 8, 4),
+                AbsenceType.Vacation));
+        await dbContext.SaveChangesAsync();
+
+        var service = new AbsenceService(dbContext);
+
+        var result = await service.ListAsync(
+            new AbsenceQueryFilters(
+                null,
+                null,
+                null,
+                AbsenceStatus.Active,
+                null),
+            CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.Equal("Active", result[0].Status);
+    }
+
+    [Fact]
+    public async Task ListAsync_FiltersByStatusCancelled()
+    {
+        await using var dbContext = await CreateDbContextAsync();
+        var employeeId = Guid.NewGuid();
+        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
+
+        dbContext.Absences.AddRange(
+            CreateActiveAbsence(
+                employeeId,
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 2),
+                AbsenceType.Permission),
+            CreateCancelledAbsence(
+                employeeId,
+                new DateOnly(2026, 8, 3),
+                new DateOnly(2026, 8, 4),
+                AbsenceType.Vacation));
+        await dbContext.SaveChangesAsync();
+
+        var service = new AbsenceService(dbContext);
+
+        var result = await service.ListAsync(
+            new AbsenceQueryFilters(
+                null,
+                null,
+                null,
+                AbsenceStatus.Cancelled,
+                null),
+            CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.Equal("Cancelled", result[0].Status);
+    }
+
+    [Fact]
     public async Task GetEmployeeHistoryAsync_ReturnsEmployeeHistory()
     {
         await using var dbContext = await CreateDbContextAsync();
@@ -528,24 +490,16 @@ public sealed class AbsenceServiceTests
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
         dbContext.Absences.AddRange(
-            Absence.Create(
+            CreateCancelledAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 1),
-                    new DateOnly(2026, 8, 3)),
-                AbsenceType.Permission,
-                AbsenceStatus.Rejected,
-                null,
-                null),
-            Absence.Create(
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 3),
+                AbsenceType.Permission),
+            CreateActiveAbsence(
                 employeeId,
-                new DateRange(
-                    new DateOnly(2026, 8, 10),
-                    new DateOnly(2026, 8, 15)),
-                AbsenceType.Vacation,
-                AbsenceStatus.Approved,
-                null,
-                null));
+                new DateOnly(2026, 8, 10),
+                new DateOnly(2026, 8, 15),
+                AbsenceType.Vacation));
         await dbContext.SaveChangesAsync();
 
         var service = new AbsenceService(dbContext);
@@ -557,25 +511,22 @@ public sealed class AbsenceServiceTests
         Assert.Equal(AbsenceEmployeeHistoryStatus.Success, result.Status);
         Assert.NotNull(result.Value);
         Assert.Equal(2, result.Value!.Count);
-        Assert.Equal(new DateOnly(2026, 8, 10), result.Value[0].StartDate);
+        Assert.Equal("Active", result.Value[0].Status);
+        Assert.Equal("Cancelled", result.Value[1].Status);
     }
 
     [Fact]
-    public async Task CancelAsync_PerformsLogicalCancellation()
+    public async Task CancelAsync_PerformsLogicalCancellationAndPreservesHistory()
     {
         await using var dbContext = await CreateDbContextAsync();
         var employeeId = Guid.NewGuid();
         dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absence = Absence.Create(
+        var absence = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
-            AbsenceType.Vacation,
-            AbsenceStatus.Approved,
-            null,
-            null);
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
 
         dbContext.Absences.Add(absence);
         await dbContext.SaveChangesAsync();
@@ -593,6 +544,35 @@ public sealed class AbsenceServiceTests
 
         var persisted = await dbContext.Absences.SingleAsync(x => x.Id == absence.Id);
         Assert.Equal(AbsenceStatus.Cancelled, persisted.Status);
+        Assert.Equal(1, await dbContext.Absences.CountAsync());
+    }
+
+    [Fact]
+    public async Task CancelAsync_IsIdempotentWhenAbsenceIsAlreadyCancelled()
+    {
+        await using var dbContext = await CreateDbContextAsync();
+        var employeeId = Guid.NewGuid();
+        dbContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
+
+        var absence = CreateCancelledAbsence(
+            employeeId,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
+
+        dbContext.Absences.Add(absence);
+        await dbContext.SaveChangesAsync();
+        await SetVersionAsync(dbContext, absence.Id, 26u);
+        dbContext.ChangeTracker.Clear();
+
+        var service = new AbsenceService(dbContext);
+
+        var result = await service.CancelAsync(
+            absence.Id,
+            new CancelAbsenceCommand(26u),
+            CancellationToken.None);
+
+        Assert.Equal(AbsenceWriteStatus.Success, result.Status);
     }
 
     [Fact]
@@ -602,15 +582,11 @@ public sealed class AbsenceServiceTests
         var employeeId = Guid.NewGuid();
         setupContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
 
-        var absence = Absence.Create(
+        var absence = CreateActiveAbsence(
             employeeId,
-            new DateRange(
-                new DateOnly(2026, 8, 10),
-                new DateOnly(2026, 8, 15)),
-            AbsenceType.Vacation,
-            AbsenceStatus.Approved,
-            null,
-            null);
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
 
         setupContext.Absences.Add(absence);
         await setupContext.SaveChangesAsync();
@@ -626,13 +602,74 @@ public sealed class AbsenceServiceTests
                     new DateOnly(2026, 8, 11),
                     new DateOnly(2026, 8, 16)),
                 AbsenceType.Vacation,
-                AbsenceStatus.Approved,
                 "Cambio de fechas",
                 null,
                 10u),
             CancellationToken.None);
 
         Assert.Equal(AbsenceWriteStatus.ConcurrencyConflict, result.Status);
+    }
+
+    [Fact]
+    public async Task CancelAsync_ReturnsConcurrencyConflictWhenVersionIsStale()
+    {
+        await using var setupContext = await CreateDbContextAsync();
+        var employeeId = Guid.NewGuid();
+        setupContext.Employees.Add(CreateEmployee(employeeId, isActive: true));
+
+        var absence = CreateActiveAbsence(
+            employeeId,
+            new DateOnly(2026, 8, 10),
+            new DateOnly(2026, 8, 15),
+            AbsenceType.Vacation);
+
+        setupContext.Absences.Add(absence);
+        await setupContext.SaveChangesAsync();
+        await SetVersionAsync(setupContext, absence.Id, 12u);
+        setupContext.ChangeTracker.Clear();
+
+        var service = new AbsenceService(setupContext);
+
+        var result = await service.CancelAsync(
+            absence.Id,
+            new CancelAbsenceCommand(11u),
+            CancellationToken.None);
+
+        Assert.Equal(AbsenceWriteStatus.ConcurrencyConflict, result.Status);
+    }
+
+    private static Absence CreateActiveAbsence(
+        Guid employeeId,
+        DateOnly startDate,
+        DateOnly endDate,
+        AbsenceType type,
+        string? reason = null,
+        string? notes = null)
+        => Absence.Create(
+            employeeId,
+            new DateRange(startDate, endDate),
+            type,
+            reason,
+            notes);
+
+    private static Absence CreateCancelledAbsence(
+        Guid employeeId,
+        DateOnly startDate,
+        DateOnly endDate,
+        AbsenceType type,
+        string? reason = null,
+        string? notes = null)
+    {
+        var absence = CreateActiveAbsence(
+            employeeId,
+            startDate,
+            endDate,
+            type,
+            reason,
+            notes);
+
+        absence.Cancel();
+        return absence;
     }
 
     private static async Task<AttendanceDbContext> CreateDbContextAsync()
