@@ -5,5 +5,6 @@ namespace Attendance.Api.Modules.Attendance.Domain;
 /// </summary>
 public enum AttendanceEvaluationFailure
 {
-    MissingWorkCalendarDay = 1
+    MissingWorkCalendarDay = 1,
+    MultipleActiveAbsences = 2
 }

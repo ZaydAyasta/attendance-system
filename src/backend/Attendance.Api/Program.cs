@@ -1,6 +1,8 @@
 using Attendance.Api.BuildingBlocks.Persistence;
 using Attendance.Api.Modules.Absences.Application;
 using Attendance.Api.Modules.Absences.Endpoints;
+using Attendance.Api.Modules.Attendance.Application;
+using Attendance.Api.Modules.Attendance.Endpoints;
 using Attendance.Api.Modules.WorkCalendar.Application;
 using Attendance.Api.Modules.WorkCalendar.Endpoints;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,7 @@ var connectionString =
 builder.Services.AddDbContext<AttendanceDbContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddAbsencesModule();
+builder.Services.AddAttendanceModule(builder.Configuration);
 builder.Services.AddWorkCalendarModule();
 
 // Add services to the container.
@@ -31,6 +34,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapAbsenceEndpoints();
+app.MapAttendanceEndpoints();
 app.MapWorkCalendarEndpoints();
 
 app.Run();
