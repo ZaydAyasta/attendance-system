@@ -8,6 +8,7 @@ using Attendance.Api.Modules.WorkCalendar.Endpoints;
 using Attendance.Api.Modules.WorkAssignments.Application;
 using Attendance.Api.Modules.WorkAssignments.Endpoints;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,9 +34,18 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference("/docs", options =>
+    {
+        options.WithTitle("Sistema de Asistencia API");
+        options.WithOpenApiRoutePattern("/openapi/{documentName}.json");
+    });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.MapAbsenceEndpoints();
 app.MapAttendanceEndpoints();
 app.MapWorkCalendarEndpoints();
