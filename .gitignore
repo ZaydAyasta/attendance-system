@@ -17,7 +17,12 @@ obj/
 node_modules/
 dist/
 dist-ssr/
+*.tsbuildinfo
 *.local
+
+# Accidental root-level npm files
+/package.json
+/package-lock.json
 
 # Logs
 logs/
@@ -61,6 +66,9 @@ coverage/
 TestResults/
 *.trx
 
+# Generated API docs
+docs/bruno/**/*.html
+
 # =========================
 # Misc
 # =========================
@@ -69,3 +77,4 @@ TestResults/
 *.ntvs*
 *.njsproj
 *.swp
+.bruno/

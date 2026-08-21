@@ -6,16 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@primeuix/themes": "^3.0.0",
+    "@primevue/themes": "^4.5.4",
     "axios": "^1.19.0",
     "pinia": "^4.0.3",
     "primeicons": "^8.0.0",
-    "primevue": "^5.0.1",
+    "primevue": "^4.5.5",
     "vue": "^3.5.40",
-    "vue-router": "^5.2.0"
+    "vue-router": "^5.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
