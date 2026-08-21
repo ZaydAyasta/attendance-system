@@ -102,6 +102,7 @@ public sealed class DailyAttendanceServicePrecedenceTests
         var service = new DailyAttendanceService(
             dbContext,
             new AttendanceEvaluator(),
+            new AttendanceTimeCalculator(),
             AttendanceTimeZone);
 
         return (DailyAttendanceResult)typeof(DailyAttendanceService)

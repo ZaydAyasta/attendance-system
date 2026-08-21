@@ -11,6 +11,7 @@ namespace Attendance.Api.Modules.Attendance.Application;
 public sealed class DailyAttendanceService(
     AttendanceDbContext dbContext,
     AttendanceEvaluator evaluator,
+    AttendanceTimeCalculator timeCalculator,
     AttendanceTimeZone attendanceTimeZone)
 {
     public async Task<AttendanceQueryResult<DailyAttendanceResponse>> GetByDateAsync(
@@ -50,10 +51,11 @@ public sealed class DailyAttendanceService(
             workCalendarDay,
             absences,
             marks);
+        var timeResult = timeCalculator.Calculate(marks);
 
         return new AttendanceQueryResult<DailyAttendanceResponse>(
             AttendanceQueryStatus.Success,
-            Map(result));
+            Map(result, timeResult));
     }
 
     public async Task<AttendanceQueryResult<EmployeeAttendanceRangeResponse>> GetRangeAsync(
@@ -113,8 +115,10 @@ public sealed class DailyAttendanceService(
                 workCalendarDay,
                 absencesForDate ?? Array.Empty<Absence>(),
                 marksForDate ?? Array.Empty<AttendanceMark>());
+            var timeResult = timeCalculator.Calculate(
+                marksForDate ?? Array.Empty<AttendanceMark>());
 
-            days.Add(Map(result));
+            days.Add(Map(result, timeResult));
         }
 
         return new AttendanceQueryResult<EmployeeAttendanceRangeResponse>(
@@ -137,47 +141,46 @@ public sealed class DailyAttendanceService(
         Guid employeeId,
         DateOnly date,
         CancellationToken cancellationToken)
-        => await dbContext.Absences
+        => (await dbContext.Absences
             .AsNoTracking()
             .Where(x =>
                 x.EmployeeId == employeeId
-                && x.Status == AbsenceStatus.Active
-                && x.Period.Start <= date
-                && x.Period.End >= date)
+                && x.Status == AbsenceStatus.Active)
+            .ToListAsync(cancellationToken))
+            .Where(x => x.Period.Contains(date))
             .OrderBy(x => x.Period.Start)
             .ThenBy(x => x.Period.End)
             .Take(2)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
     private async Task<List<Absence>> LoadActiveAbsencesForRangeAsync(
         Guid employeeId,
         DateOnly from,
         DateOnly to,
         CancellationToken cancellationToken)
-        => await dbContext.Absences
+        => (await dbContext.Absences
             .AsNoTracking()
             .Where(x =>
                 x.EmployeeId == employeeId
-                && x.Status == AbsenceStatus.Active
-                && x.Period.Start <= to
-                && x.Period.End >= from)
+                && x.Status == AbsenceStatus.Active)
+            .ToListAsync(cancellationToken))
+            .Where(x => x.Period.Start <= to && x.Period.End >= from)
             .OrderBy(x => x.Period.Start)
             .ThenBy(x => x.Period.End)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
     private async Task<List<AttendanceMark>> LoadMarksAsync(
         Guid employeeId,
         DateTimeOffset startInclusive,
         DateTimeOffset endExclusive,
         CancellationToken cancellationToken)
-        => await dbContext.AttendanceMarks
+        => (await dbContext.AttendanceMarks
             .AsNoTracking()
-            .Where(x =>
-                x.EmployeeId == employeeId
-                && x.OccurredAt >= startInclusive
-                && x.OccurredAt < endExclusive)
+            .Where(x => x.EmployeeId == employeeId)
+            .ToListAsync(cancellationToken))
+            .Where(x => x.OccurredAt >= startInclusive && x.OccurredAt < endExclusive)
             .OrderBy(x => x.OccurredAt)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
     private DailyAttendanceResult EvaluateDate(
         Employee employee,
@@ -256,8 +259,15 @@ public sealed class DailyAttendanceService(
             x => (IReadOnlyCollection<Absence>)x.Value);
     }
 
-    private static DailyAttendanceResponse Map(DailyAttendanceResult result)
-        => new(
+    private static DailyAttendanceResponse Map(
+        DailyAttendanceResult result,
+        DailyWorkedTimeResult timeResult)
+    {
+        var suppressNoAttendanceMarks =
+            timeResult.Issues.Count == 1
+            && timeResult.Issues.Contains(AttendanceTimeIssue.NoAttendanceMarks);
+
+        return new(
             result.EmployeeId,
             result.Date,
             result.Status?.ToString(),
@@ -265,5 +275,21 @@ public sealed class DailyAttendanceService(
                 .Where(x => x != AttendanceAnomaly.None)
                 .Select(x => x.ToString())
                 .ToArray(),
-            result.Failure?.ToString());
+            result.Failure?.ToString(),
+            suppressNoAttendanceMarks
+                ? null
+                : timeResult.GrossMinutes,
+            suppressNoAttendanceMarks
+                ? null
+                : timeResult.LunchMinutes,
+            suppressNoAttendanceMarks
+                ? null
+                : timeResult.WorkedMinutes,
+            suppressNoAttendanceMarks
+                ? false
+                : timeResult.IsComplete,
+            suppressNoAttendanceMarks
+                ? Array.Empty<string>()
+                : timeResult.Issues.Select(x => x.ToString()).ToArray());
+    }
 }

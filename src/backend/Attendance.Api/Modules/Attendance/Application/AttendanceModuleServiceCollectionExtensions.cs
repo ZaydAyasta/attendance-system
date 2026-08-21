@@ -16,6 +16,7 @@ public static class AttendanceModuleServiceCollectionExtensions
 
         services.AddSingleton(new AttendanceTimeZone(timeZoneId));
         services.AddSingleton<AttendanceEvaluator>();
+        services.AddSingleton<AttendanceTimeCalculator>();
         services.AddScoped<DailyAttendanceService>();
 
         return services;

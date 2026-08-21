@@ -54,5 +54,9 @@ public sealed class DailyAttendanceServiceBasicTests
 
     private static DailyAttendanceService CreateService(
         AttendanceDbContext dbContext)
-        => new(dbContext, new AttendanceEvaluator(), AttendanceTimeZone);
+        => new(
+            dbContext,
+            new AttendanceEvaluator(),
+            new AttendanceTimeCalculator(),
+            AttendanceTimeZone);
 }

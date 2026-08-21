@@ -680,7 +680,11 @@ public sealed class DailyAttendanceServicePostgreSqlTests
 
     private static DailyAttendanceService CreateService(
         AttendanceDbContext dbContext)
-        => new(dbContext, new AttendanceEvaluator(), AttendanceTimeZone);
+        => new(
+            dbContext,
+            new AttendanceEvaluator(),
+            new AttendanceTimeCalculator(),
+            AttendanceTimeZone);
 
     private static WorkCalendarDay CreateWorkCalendarDay(
         DateOnly date,

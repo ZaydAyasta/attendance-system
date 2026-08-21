@@ -18,7 +18,7 @@ public static class AttendanceEndpointRouteBuilderExtensions
             .WithName("GetEmployeeAttendanceByDate")
             .WithSummary("Get daily attendance")
             .WithDescription(
-                "Returns the daily attendance evaluation for a specific employee and date.")
+                "Returns the daily attendance evaluation and observed worked-time calculation for a specific employee and date.")
             .Produces<DailyAttendanceResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -30,7 +30,7 @@ public static class AttendanceEndpointRouteBuilderExtensions
             .WithName("GetEmployeeAttendanceRange")
             .WithSummary("Get attendance by date range")
             .WithDescription(
-                "Returns one evaluated attendance result per day for the requested inclusive range.")
+                "Returns one daily attendance evaluation and worked-time calculation per day for the requested inclusive range.")
             .Produces<EmployeeAttendanceRangeResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

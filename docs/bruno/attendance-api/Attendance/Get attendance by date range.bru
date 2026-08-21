@@ -35,12 +35,12 @@ example {
     method: GET
     mode: none
     params:query: {
-      ~from: 
-      ~to: 
+      ~from: {{fromDate}}
+      ~to: {{toDate}}
     }
   
     params:path: {
-      employeeId: 
+      employeeId: {{employeeId}}
     }
   }
   
@@ -58,16 +58,21 @@ example {
       type: json
       content: '''
         {
-          "employeeId": "",
-          "from": "",
-          "to": "",
+          "employeeId": "{{employeeId}}",
+          "from": "{{fromDate}}",
+          "to": "{{toDate}}",
           "days": [
             {
-              "employeeId": "",
-              "date": "",
-              "status": "",
+              "employeeId": "{{employeeId}}",
+              "date": "{{fromDate}}",
+              "status": "Present",
               "anomalies": [],
-              "failure": ""
+              "failure": null,
+              "grossMinutes": 600,
+              "lunchMinutes": 60,
+              "workedMinutes": 540,
+              "timeCalculationComplete": true,
+              "timeIssues": []
             }
           ]
         }
@@ -85,12 +90,12 @@ example {
     method: GET
     mode: none
     params:query: {
-      ~from: 
-      ~to: 
+      ~from: invalid-date
+      ~to: {{toDate}}
     }
   
     params:path: {
-      employeeId: 
+      employeeId: {{employeeId}}
     }
   }
   
@@ -129,12 +134,12 @@ example {
     method: GET
     mode: none
     params:query: {
-      ~from: 
-      ~to: 
+      ~from: {{fromDate}}
+      ~to: {{toDate}}
     }
   
     params:path: {
-      employeeId: 
+      employeeId: {{employeeId}}
     }
   }
   
@@ -162,12 +167,12 @@ example {
     method: GET
     mode: none
     params:query: {
-      ~from: 
-      ~to: 
+      ~from: {{fromDate}}
+      ~to: {{toDate}}
     }
   
     params:path: {
-      employeeId: 
+      employeeId: {{employeeId}}
     }
   }
   

@@ -5,4 +5,9 @@ public sealed record DailyAttendanceResponse(
     DateOnly Date,
     string? Status,
     IReadOnlyCollection<string> Anomalies,
-    string? Failure);
+    string? Failure,
+    int? GrossMinutes,
+    int? LunchMinutes,
+    int? WorkedMinutes,
+    bool TimeCalculationComplete,
+    IReadOnlyCollection<string> TimeIssues);
