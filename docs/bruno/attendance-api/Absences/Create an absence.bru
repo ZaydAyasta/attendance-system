@@ -1,0 +1,249 @@
+meta {
+  name: Create an absence
+  type: http
+  seq: 2
+  tags: [
+    Absences
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/absences
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "employeeId": "{{employeeId}}",
+    "startDate": "{{fromDate}}",
+    "endDate": "{{toDate}}",
+    "type": "Vacation",
+    "reason": "Vacation example created from Bruno",
+    "notes": "Replace dates and type as needed"
+  }
+}
+
+docs {
+  Registers a new absence for an employee.
+}
+
+example {
+  name: 201 Response
+  description: Created
+  
+  request: {
+    url: {{baseUrl}}/api/absences
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "employeeId": "",
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+  
+    status: {
+      code: 201
+      text: Created
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "id": "",
+          "employeeId": "",
+          "startDate": "",
+          "endDate": "",
+          "type": "",
+          "status": "",
+          "reason": "",
+          "notes": "",
+          "version": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Bad Request
+  
+  request: {
+    url: {{baseUrl}}/api/absences
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "employeeId": "",
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": "",
+          "errors": {}
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Not Found
+  
+  request: {
+    url: {{baseUrl}}/api/absences
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "employeeId": "",
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": ""
+      }
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: Conflict
+  
+  request: {
+    url: {{baseUrl}}/api/absences
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "employeeId": "",
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 409
+      text: Conflict
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/api/absences
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "employeeId": "",
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}

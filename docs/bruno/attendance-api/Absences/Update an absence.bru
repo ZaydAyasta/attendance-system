@@ -1,0 +1,273 @@
+meta {
+  name: Update an absence
+  type: http
+  seq: 4
+  tags: [
+    Absences
+  ]
+}
+
+put {
+  url: {{baseUrl}}/api/absences/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{absenceId}}
+}
+
+body:json {
+  {
+    "startDate": "{{fromDate}}",
+    "endDate": "{{toDate}}",
+    "type": "Permission",
+    "reason": "Updated example from Bruno",
+    "notes": "Use the current version returned by GET before sending",
+    "version": 1
+  }
+}
+
+docs {
+  Updates an existing absence while preserving optimistic concurrency checks.
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/api/absences/:id
+    method: PUT
+    mode: json
+    params:path: {
+      id: 
+    }
+  
+    body:json: {
+      {
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": "",
+        "version": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "id": "",
+          "employeeId": "",
+          "startDate": "",
+          "endDate": "",
+          "type": "",
+          "status": "",
+          "reason": "",
+          "notes": "",
+          "version": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Bad Request
+  
+  request: {
+    url: {{baseUrl}}/api/absences/:id
+    method: PUT
+    mode: json
+    params:path: {
+      id: 
+    }
+  
+    body:json: {
+      {
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": "",
+        "version": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": "",
+          "errors": {}
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Not Found
+  
+  request: {
+    url: {{baseUrl}}/api/absences/:id
+    method: PUT
+    mode: json
+    params:path: {
+      id: 
+    }
+  
+    body:json: {
+      {
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": "",
+        "version": ""
+      }
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: Conflict
+  
+  request: {
+    url: {{baseUrl}}/api/absences/:id
+    method: PUT
+    mode: json
+    params:path: {
+      id: 
+    }
+  
+    body:json: {
+      {
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": "",
+        "version": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 409
+      text: Conflict
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/api/absences/:id
+    method: PUT
+    mode: json
+    params:path: {
+      id: 
+    }
+  
+    body:json: {
+      {
+        "startDate": "",
+        "endDate": "",
+        "type": "",
+        "reason": "",
+        "notes": "",
+        "version": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}

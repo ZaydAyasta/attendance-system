@@ -1,4 +1,5 @@
 using Attendance.Api.Modules.Attendance.Application;
+using Attendance.Api.Modules.Attendance.Contracts;
 
 namespace Attendance.Api.Modules.Attendance.Endpoints;
 
@@ -13,10 +14,27 @@ public static class AttendanceEndpointRouteBuilderExtensions
 
         employeesGroup.MapGet(
             "/{employeeId:guid}/attendance/{date}",
-            GetByDateAsync);
+            GetByDateAsync)
+            .WithName("GetEmployeeAttendanceByDate")
+            .WithSummary("Get daily attendance")
+            .WithDescription(
+                "Returns the daily attendance evaluation for a specific employee and date.")
+            .Produces<DailyAttendanceResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         employeesGroup.MapGet(
             "/{employeeId:guid}/attendance",
-            GetRangeAsync);
+            GetRangeAsync)
+            .WithName("GetEmployeeAttendanceRange")
+            .WithSummary("Get attendance by date range")
+            .WithDescription(
+                "Returns one evaluated attendance result per day for the requested inclusive range.")
+            .Produces<EmployeeAttendanceRangeResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
         return endpoints;
     }

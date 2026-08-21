@@ -1,0 +1,194 @@
+meta {
+  name: Create a work calendar day
+  type: http
+  seq: 2
+  tags: [
+    Work_Calendar
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/work-calendar
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "date": "{{calendarDate}}",
+    "dayType": "WorkingDay",
+    "description": "Regular working day example from Bruno"
+  }
+}
+
+docs {
+  Creates a work calendar entry for a specific date.
+}
+
+example {
+  name: 201 Response
+  description: Created
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "date": "",
+        "dayType": "",
+        "description": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+  
+    status: {
+      code: 201
+      text: Created
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "date": "",
+          "dayType": "",
+          "description": "",
+          "version": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Bad Request
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "date": "",
+        "dayType": "",
+        "description": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": "",
+          "errors": {}
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: Conflict
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "date": "",
+        "dayType": "",
+        "description": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 409
+      text: Conflict
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "date": "",
+        "dayType": "",
+        "description": ""
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}

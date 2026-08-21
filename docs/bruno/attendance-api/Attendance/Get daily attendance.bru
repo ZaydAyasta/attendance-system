@@ -1,0 +1,170 @@
+meta {
+  name: Get daily attendance
+  type: http
+  seq: 1
+  tags: [
+    Attendance
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/employees/:employeeId/attendance/:date
+  body: none
+  auth: inherit
+}
+
+params:path {
+  employeeId: {{employeeId}}
+  date: {{attendanceDate}}
+}
+
+docs {
+  Returns the daily attendance evaluation for a specific employee and date.
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/api/employees/:employeeId/attendance/:date
+    method: GET
+    mode: none
+    params:path: {
+      employeeId: 
+      date: 
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "employeeId": "",
+          "date": "",
+          "status": "",
+          "anomalies": [],
+          "failure": ""
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Bad Request
+  
+  request: {
+    url: {{baseUrl}}/api/employees/:employeeId/attendance/:date
+    method: GET
+    mode: none
+    params:path: {
+      employeeId: 
+      date: 
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": "",
+          "errors": {}
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Not Found
+  
+  request: {
+    url: {{baseUrl}}/api/employees/:employeeId/attendance/:date
+    method: GET
+    mode: none
+    params:path: {
+      employeeId: 
+      date: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/api/employees/:employeeId/attendance/:date
+    method: GET
+    mode: none
+    params:path: {
+      employeeId: 
+      date: 
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": ""
+        }
+      '''
+    }
+  }
+}

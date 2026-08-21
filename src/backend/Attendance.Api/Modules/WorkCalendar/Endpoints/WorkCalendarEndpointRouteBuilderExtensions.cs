@@ -13,12 +13,56 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             .MapGroup("/api/work-calendar")
             .WithTags("Work Calendar");
 
-        group.MapGet(string.Empty, ListAsync);
+        group.MapGet(string.Empty, ListAsync)
+            .WithName("ListWorkCalendarDays")
+            .WithSummary("List work calendar days")
+            .WithDescription(
+                "Returns work calendar entries filtered by an optional inclusive date range.")
+            .Produces<IReadOnlyCollection<WorkCalendarDayResponse>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         group.MapGet("/{date}", GetByDateAsync)
-            .WithName("GetWorkCalendarDayByDate");
-        group.MapPost(string.Empty, CreateAsync);
-        group.MapPut("/{date}", UpdateAsync);
-        group.MapDelete("/{date}", DeleteAsync);
+            .WithName("GetWorkCalendarDayByDate")
+            .WithSummary("Get a work calendar day")
+            .WithDescription(
+                "Returns the labor classification configured for a specific calendar date.")
+            .Produces<WorkCalendarDayResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost(string.Empty, CreateAsync)
+            .WithName("CreateWorkCalendarDay")
+            .WithSummary("Create a work calendar day")
+            .WithDescription(
+                "Creates a work calendar entry for a specific date.")
+            .Accepts<CreateWorkCalendarDayRequest>("application/json")
+            .Produces<WorkCalendarDayResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPut("/{date}", UpdateAsync)
+            .WithName("UpdateWorkCalendarDay")
+            .WithSummary("Update a work calendar day")
+            .WithDescription(
+                "Updates the labor classification or description of an existing work calendar entry.")
+            .Accepts<UpdateWorkCalendarDayRequest>("application/json")
+            .Produces<WorkCalendarDayResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
+        group.MapDelete("/{date}", DeleteAsync)
+            .WithName("DeleteWorkCalendarDay")
+            .WithSummary("Delete a work calendar day")
+            .WithDescription(
+                "Deletes an existing work calendar entry for the specified date.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
         return endpoints;
     }

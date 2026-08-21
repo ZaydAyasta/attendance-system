@@ -1,0 +1,103 @@
+meta {
+  name: List work calendar days
+  type: http
+  seq: 1
+  tags: [
+    Work_Calendar
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/work-calendar
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: {{fromDate}}
+  ~to: {{toDate}}
+}
+
+docs {
+  Returns work calendar entries filtered by an optional inclusive date range.
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: GET
+    mode: none
+    params:query: {
+      ~from: 
+      ~to: 
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        [
+          {
+            "date": "",
+            "dayType": "",
+            "description": "",
+            "version": ""
+          }
+        ]
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Bad Request
+  
+  request: {
+    url: {{baseUrl}}/api/work-calendar
+    method: GET
+    mode: none
+    params:query: {
+      ~from: 
+      ~to: 
+    }
+  }
+  
+  response: {
+    headers: {
+      Content-Type: application/problem+json
+    }
+  
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "type": "",
+          "title": "",
+          "status": "",
+          "detail": "",
+          "instance": "",
+          "errors": {}
+        }
+      '''
+    }
+  }
+}
