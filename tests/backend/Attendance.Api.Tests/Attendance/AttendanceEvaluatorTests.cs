@@ -325,18 +325,12 @@ public sealed class AttendanceEvaluatorTests
         Guid employeeId,
         DateTimeOffset occurredAt,
         AttendanceMarkType type)
-    {
-        var mark = new AttendanceMark();
-
-        SetMarkProperty(mark, nameof(AttendanceMark.Id), Guid.NewGuid());
-        SetMarkProperty(mark, nameof(AttendanceMark.EmployeeId), employeeId);
-        SetMarkProperty(mark, nameof(AttendanceMark.OccurredAt), occurredAt);
-        SetMarkProperty(mark, nameof(AttendanceMark.Type), type);
-        SetMarkProperty(mark, nameof(AttendanceMark.Source), AttendanceSource.Manual);
-        SetMarkProperty<Guid?>(mark, nameof(AttendanceMark.CheckpointId), null);
-
-        return mark;
-    }
+        => AttendanceMark.Create(
+            employeeId,
+            occurredAt,
+            type,
+            AttendanceSource.Manual,
+            checkpointId: null);
 
     private static void AssertSuccess(
         DailyAttendanceResult result,
@@ -359,13 +353,4 @@ public sealed class AttendanceEvaluatorTests
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .SetValue(employee, value);
 
-    private static void SetMarkProperty<T>(
-        AttendanceMark mark,
-        string propertyName,
-        T value)
-        => typeof(AttendanceMark)
-            .GetProperty(
-                propertyName,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .SetValue(mark, value);
 }

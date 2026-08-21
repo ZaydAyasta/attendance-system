@@ -703,18 +703,12 @@ public sealed class DailyAttendanceServicePostgreSqlTests
         Guid employeeId,
         DateTimeOffset occurredAt,
         AttendanceMarkType type)
-    {
-        var mark = new AttendanceMark();
-
-        SetAttendanceMarkProperty(mark, nameof(AttendanceMark.Id), Guid.NewGuid());
-        SetAttendanceMarkProperty(mark, nameof(AttendanceMark.EmployeeId), employeeId);
-        SetAttendanceMarkProperty(mark, nameof(AttendanceMark.OccurredAt), occurredAt);
-        SetAttendanceMarkProperty(mark, nameof(AttendanceMark.Type), type);
-        SetAttendanceMarkProperty(mark, nameof(AttendanceMark.Source), AttendanceSource.Manual);
-        SetAttendanceMarkProperty<Guid?>(mark, nameof(AttendanceMark.CheckpointId), null);
-
-        return mark;
-    }
+        => AttendanceMark.Create(
+            employeeId,
+            occurredAt,
+            type,
+            AttendanceSource.Manual,
+            checkpointId: null);
 
     private static Employee CreateEmployee(
         bool isActive = true,
@@ -775,13 +769,4 @@ public sealed class DailyAttendanceServicePostgreSqlTests
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
             .SetValue(employee, value);
 
-    private static void SetAttendanceMarkProperty<T>(
-        AttendanceMark attendanceMark,
-        string propertyName,
-        T value)
-        => typeof(AttendanceMark)
-            .GetProperty(
-                propertyName,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .SetValue(attendanceMark, value);
 }
