@@ -246,6 +246,9 @@ describe('WorkCalendarView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="work-calendar-day-2026-08-01"]').exists()).toBe(true)
+    expect(
+      wrapper.get('[data-testid="work-calendar-day-2026-08-21"]').attributes('aria-label'),
+    ).toContain('sin configurar')
     expect(wrapper.text()).toContain('Haz clic en una fecha para registrarla.')
   })
 
@@ -255,8 +258,67 @@ describe('WorkCalendarView', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    const dayButton = wrapper.get('[data-testid="work-calendar-day-2026-08-21"]')
+
     expect(wrapper.text()).toContain('No pudimos cargar la configuración de este mes.')
     expect(wrapper.text()).toContain('Volver a intentar')
+    expect(dayButton.text()).not.toContain('Sin configurar')
+    expect(dayButton.attributes('aria-label')).not.toContain('sin configurar')
+    expect(wrapper.text()).not.toContain('Sin datos')
+  })
+
+  it('keeps month days disabled after a read error', async () => {
+    listWorkCalendarDaysMock.mockRejectedValue(new Error('boom'))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const dayButton = wrapper.get('[data-testid="work-calendar-day-2026-08-21"]')
+
+    expect(dayButton.attributes()).toHaveProperty('disabled')
+
+    await dayButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="work-calendar-date-display"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Editar día')
+  })
+
+  it('restores day interaction after a successful retry', async () => {
+    listWorkCalendarDaysMock.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await getButtonByText(wrapper, 'Volver a intentar').trigger('click')
+    await flushPromises()
+
+    const dayButton = wrapper.get('[data-testid="work-calendar-day-2026-08-27"]')
+
+    expect(dayButton.attributes('disabled')).toBeUndefined()
+
+    await dayButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Agregar día')
+  })
+
+  it('keeps mobile labels accessible through aria labels', async () => {
+    listWorkCalendarDaysMock.mockResolvedValue([
+      {
+        date: '2026-08-21',
+        dayType: 'Holiday',
+        description: null,
+        version: 3,
+      },
+    ])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(
+      wrapper.get('[data-testid="work-calendar-day-2026-08-21"]').attributes('aria-label'),
+    ).toContain('feriado')
   })
 
   it('creates a day and refreshes the visible month', async () => {

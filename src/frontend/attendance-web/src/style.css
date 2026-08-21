@@ -588,12 +588,7 @@ img {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.work-calendar-month__toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .work-calendar-month__title {
@@ -682,7 +677,7 @@ img {
 }
 
 .work-calendar-month__day--disabled {
-  cursor: wait;
+  cursor: not-allowed;
 }
 
 .work-calendar-month__day-number {
@@ -793,6 +788,10 @@ img {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .work-calendar-month__navigation {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -865,12 +864,11 @@ img {
   }
 
   .work-calendar-month__day-status {
-    font-size: 0.62rem;
-    gap: 0.2rem;
+    justify-content: flex-start;
   }
 
   .work-calendar-month__day-status .pi {
-    font-size: 0.68rem;
+    font-size: 0.78rem;
   }
 
   .work-calendar-month__day-status-full {
@@ -878,7 +876,7 @@ img {
   }
 
   .work-calendar-month__day-status-short {
-    display: inline;
+    display: none;
   }
 
   .work-calendar-month__legend {

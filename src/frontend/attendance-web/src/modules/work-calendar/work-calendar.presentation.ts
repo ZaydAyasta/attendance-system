@@ -11,8 +11,10 @@ export interface WorkCalendarVisualStateMetadata {
   icon: string
   label: string
   shortLabel: string
-  severity: 'contrast' | 'secondary' | 'success' | 'warn' | 'info'
+  severity: 'secondary' | 'success' | 'warn' | 'info'
 }
+
+export type WorkCalendarVisualState = WorkCalendarDayType | 'Unconfigured'
 
 export interface WorkCalendarMonthCell {
   date: string
@@ -41,22 +43,13 @@ const dayTypeMetadata: Record<WorkCalendarDayType, WorkCalendarDayTypeMetadata> 
   },
 }
 
-const workCalendarVisualMetadata: Record<
-  WorkCalendarDayType | 'Unconfigured' | 'Unavailable',
-  WorkCalendarVisualStateMetadata
-> = {
+const workCalendarVisualMetadata: Record<WorkCalendarVisualState, WorkCalendarVisualStateMetadata> = {
   ...dayTypeMetadata,
   Unconfigured: {
     label: 'Sin configurar',
     shortLabel: 'Sin conf.',
     icon: 'pi pi-question-circle',
     severity: 'secondary',
-  },
-  Unavailable: {
-    label: 'Sin datos',
-    shortLabel: 'Sin datos',
-    icon: 'pi pi-exclamation-circle',
-    severity: 'contrast',
   },
 }
 
@@ -69,7 +62,7 @@ export function getWorkCalendarDayTypeMetadata(
 }
 
 export function getWorkCalendarVisualStateMetadata(
-  state: WorkCalendarDayType | 'Unconfigured' | 'Unavailable',
+  state: WorkCalendarVisualState,
 ): WorkCalendarVisualStateMetadata {
   return workCalendarVisualMetadata[state]
 }

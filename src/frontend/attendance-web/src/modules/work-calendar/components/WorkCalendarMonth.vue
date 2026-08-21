@@ -41,16 +41,13 @@ const monthLabel = computed(() => getMonthLabel(props.month))
 const cells = computed(() =>
   buildWorkCalendarMonth(props.month).map((cell) => {
     const configuredDay = configuredDays.value.get(cell.date)
-    const state = props.ready
-      ? configuredDay?.dayType ?? 'Unconfigured'
-      : props.loading
-        ? 'Unavailable'
-        : 'Unavailable'
 
     return {
       ...cell,
       day: configuredDay ?? null,
-      metadata: getWorkCalendarVisualStateMetadata(state),
+      metadata: props.ready
+        ? getWorkCalendarVisualStateMetadata(configuredDay?.dayType ?? 'Unconfigured')
+        : null,
     }
   }),
 )
@@ -75,6 +72,12 @@ function handleSelect(date: string): void {
 
   emit('selectEmpty', date)
 }
+
+function getCellAriaLabel(date: string, label: string | null): string {
+  const formattedDate = formatWorkCalendarDateWithWeekday(date)
+
+  return label ? `${formattedDate}, ${label.toLowerCase()}` : formattedDate
+}
 </script>
 
 <template>
@@ -98,12 +101,6 @@ function handleSelect(date: string): void {
           data-testid="work-calendar-next-month"
           @click="emit('nextMonth')"
         />
-      </div>
-
-      <div class="work-calendar-month__toolbar-actions">
-        <span v-if="loading" class="work-calendar-month__loading">
-          Cargando calendario laboral...
-        </span>
         <Button
           label="Hoy"
           text
@@ -111,6 +108,8 @@ function handleSelect(date: string): void {
           @click="emit('currentMonth')"
         />
       </div>
+
+      <span v-if="loading" class="work-calendar-month__loading"> Cargando calendario laboral... </span>
     </div>
 
     <Message
@@ -156,13 +155,13 @@ function handleSelect(date: string): void {
           'work-calendar-month__day--disabled': !ready,
         }"
         :disabled="!ready"
-        :aria-label="formatWorkCalendarDateWithWeekday(cell.date)"
+        :aria-label="getCellAriaLabel(cell.date, cell.metadata?.label ?? null)"
         :data-testid="`work-calendar-day-${cell.date}`"
         @click="handleSelect(cell.date)"
       >
         <span class="work-calendar-month__day-number">{{ cell.dayNumber }}</span>
 
-        <span class="work-calendar-month__day-status">
+        <span v-if="cell.metadata" class="work-calendar-month__day-status">
           <i :class="cell.metadata.icon" aria-hidden="true"></i>
           <span class="work-calendar-month__day-status-full">
             {{ cell.metadata.label }}

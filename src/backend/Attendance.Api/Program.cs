@@ -8,6 +8,7 @@ using Attendance.Api.Modules.WorkCalendar.Endpoints;
 using Attendance.Api.Modules.WorkAssignments.Application;
 using Attendance.Api.Modules.WorkAssignments.Endpoints;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,9 +25,17 @@ builder.Services.AddAttendanceModule(builder.Configuration);
 builder.Services.AddWorkCalendarModule();
 builder.Services.AddWorkAssignmentsModule();
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("v1", options =>
+{
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info ??= new OpenApiInfo();
+        document.Info.Title = "Sistema de Asistencia API";
+        document.Info.Version = "v1";
+
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
