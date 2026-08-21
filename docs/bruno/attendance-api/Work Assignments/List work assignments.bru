@@ -1,0 +1,29 @@
+meta {
+  name: List work assignments
+  type: http
+  seq: 1
+  tags: [
+    Work Assignments
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/work-assignments
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~employeeId: {{employeeId}}
+  ~from: {{fromDate}}
+  ~to: {{toDate}}
+  ~status: Active
+  ~type: WeekendWork
+}
+
+docs {
+  Returns work assignments filtered by optional employee, date range, status and type criteria.
+  Example values:
+  - status: Active, Cancelled
+  - type: WeekendWork, Recovery, TemporaryWork
+}

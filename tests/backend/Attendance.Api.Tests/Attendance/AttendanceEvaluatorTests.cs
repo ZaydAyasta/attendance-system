@@ -267,6 +267,7 @@ public sealed class AttendanceEvaluatorTests
                 employee,
                 date,
                 workCalendarDay,
+                effectiveDayTypeOverride: null,
                 effectiveAbsence,
                 marks));
 

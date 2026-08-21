@@ -109,7 +109,7 @@ public sealed class DailyAttendanceServicePrecedenceTests
             .GetMethod(
                 "EvaluateDate",
                 BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(service, [employee, date, workCalendarDay, absences, marks])!;
+            .Invoke(service, [employee, date, workCalendarDay, absences, null, marks])!;
     }
 
     private static AttendanceDbContext CreateDbContext()

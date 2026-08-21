@@ -20,7 +20,7 @@ public sealed class AttendanceEvaluator
                 AttendanceStatus.NotApplicable);
         }
 
-        if (context.WorkCalendarDay is null)
+        if (!context.EffectiveDayType.HasValue)
         {
             return DailyAttendanceResult.FailureResult(
                 context.Employee.Id,
@@ -39,7 +39,7 @@ public sealed class AttendanceEvaluator
                     : []);
         }
 
-        return context.WorkCalendarDay.DayType switch
+        return context.EffectiveDayType.Value switch
         {
             DayType.Holiday => DailyAttendanceResult.Success(
                 context.Employee.Id,
@@ -57,8 +57,8 @@ public sealed class AttendanceEvaluator
                     : []),
             DayType.WorkingDay => EvaluateWorkingDay(context),
             _ => throw new ArgumentOutOfRangeException(
-                nameof(context.WorkCalendarDay.DayType),
-                context.WorkCalendarDay.DayType,
+                nameof(context.EffectiveDayType),
+                context.EffectiveDayType,
                 "Unsupported work calendar day type.")
         };
     }

@@ -13,6 +13,7 @@ public sealed class AttendanceEvaluationContext
         Employee employee,
         DateOnly date,
         WorkCalendarDay? workCalendarDay,
+        DayType? effectiveDayTypeOverride,
         Absence? effectiveAbsence,
         IReadOnlyCollection<AttendanceMark>? marks)
     {
@@ -30,6 +31,15 @@ public sealed class AttendanceEvaluationContext
             throw new ArgumentException(
                 "WorkCalendarDay must match the evaluation date.",
                 nameof(workCalendarDay));
+        }
+
+        if (effectiveDayTypeOverride.HasValue
+            && !Enum.IsDefined(effectiveDayTypeOverride.Value))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(effectiveDayTypeOverride),
+                effectiveDayTypeOverride,
+                "Unsupported effective day type.");
         }
 
         if (effectiveAbsence is not null)
@@ -63,6 +73,7 @@ public sealed class AttendanceEvaluationContext
 
         Date = date;
         WorkCalendarDay = workCalendarDay;
+        EffectiveDayType = effectiveDayTypeOverride ?? workCalendarDay?.DayType;
         EffectiveAbsence = effectiveAbsence;
         Marks = normalizedMarks;
     }
@@ -72,6 +83,8 @@ public sealed class AttendanceEvaluationContext
     public DateOnly Date { get; }
 
     public WorkCalendarDay? WorkCalendarDay { get; }
+
+    public DayType? EffectiveDayType { get; }
 
     /// <summary>
     /// Gets the already-selected effective absence for the date, if any.

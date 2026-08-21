@@ -1,0 +1,28 @@
+meta {
+  name: Cancel a work assignment
+  type: http
+  seq: 5
+  tags: [
+    Work Assignments
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/work-assignments/:id/cancel
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{workAssignmentId}}
+}
+
+body:json {
+  {
+    "version": 1
+  }
+}
+
+docs {
+  Cancels an existing work assignment using optimistic concurrency.
+}

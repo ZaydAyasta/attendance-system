@@ -5,6 +5,8 @@ using Attendance.Api.Modules.Attendance.Application;
 using Attendance.Api.Modules.Attendance.Endpoints;
 using Attendance.Api.Modules.WorkCalendar.Application;
 using Attendance.Api.Modules.WorkCalendar.Endpoints;
+using Attendance.Api.Modules.WorkAssignments.Application;
+using Attendance.Api.Modules.WorkAssignments.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,7 @@ builder.Services.AddDbContext<AttendanceDbContext>(options =>
 builder.Services.AddAbsencesModule();
 builder.Services.AddAttendanceModule(builder.Configuration);
 builder.Services.AddWorkCalendarModule();
+builder.Services.AddWorkAssignmentsModule();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -36,6 +39,7 @@ app.UseHttpsRedirection();
 app.MapAbsenceEndpoints();
 app.MapAttendanceEndpoints();
 app.MapWorkCalendarEndpoints();
+app.MapWorkAssignmentEndpoints();
 
 app.Run();
 

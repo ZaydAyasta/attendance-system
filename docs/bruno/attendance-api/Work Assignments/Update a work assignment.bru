@@ -1,0 +1,31 @@
+meta {
+  name: Update a work assignment
+  type: http
+  seq: 4
+  tags: [
+    Work Assignments
+  ]
+}
+
+put {
+  url: {{baseUrl}}/api/work-assignments/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: {{workAssignmentId}}
+}
+
+body:json {
+  {
+    "date": "{{toDate}}",
+    "type": "Recovery",
+    "comment": "Recovery day after justified leave",
+    "version": 1
+  }
+}
+
+docs {
+  Updates an existing work assignment while preserving optimistic concurrency checks.
+}

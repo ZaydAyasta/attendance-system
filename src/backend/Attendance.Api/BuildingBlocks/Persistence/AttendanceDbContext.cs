@@ -2,6 +2,7 @@ using Attendance.Api.Modules.Absences.Domain;
 using Attendance.Api.Modules.Attendance.Domain;
 using Attendance.Api.Modules.Employees.Domain;
 using Attendance.Api.Modules.WorkCalendar.Domain;
+using Attendance.Api.Modules.WorkAssignments.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.BuildingBlocks.Persistence;
@@ -24,6 +25,9 @@ public sealed class AttendanceDbContext(
 
     public DbSet<AttendanceMark> AttendanceMarks =>
         Set<AttendanceMark>();
+
+    public DbSet<EmployeeWorkAssignment> EmployeeWorkAssignments =>
+        Set<EmployeeWorkAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

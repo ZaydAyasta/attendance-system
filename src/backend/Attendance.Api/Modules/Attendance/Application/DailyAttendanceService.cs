@@ -4,6 +4,7 @@ using Attendance.Api.Modules.Attendance.Contracts;
 using Attendance.Api.Modules.Attendance.Domain;
 using Attendance.Api.Modules.Employees.Domain;
 using Attendance.Api.Modules.WorkCalendar.Domain;
+using Attendance.Api.Modules.WorkAssignments.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.Modules.Attendance.Application;
@@ -35,6 +36,10 @@ public sealed class DailyAttendanceService(
             employeeId,
             query.Date,
             cancellationToken);
+        var activeWorkAssignment = await LoadActiveWorkAssignmentForDateAsync(
+            employeeId,
+            query.Date,
+            cancellationToken);
 
         var dayStart = attendanceTimeZone.GetStartOfDay(query.Date);
         var dayEndExclusive = attendanceTimeZone.GetStartOfNextDay(query.Date);
@@ -50,6 +55,7 @@ public sealed class DailyAttendanceService(
             query.Date,
             workCalendarDay,
             absences,
+            activeWorkAssignment,
             marks);
         var timeResult = timeCalculator.Calculate(marks);
 
@@ -81,6 +87,11 @@ public sealed class DailyAttendanceService(
             query.From,
             query.To,
             cancellationToken);
+        var activeWorkAssignments = await LoadActiveWorkAssignmentsForRangeAsync(
+            employeeId,
+            query.From,
+            query.To,
+            cancellationToken);
 
         var rangeStart = attendanceTimeZone.GetStartOfDay(query.From);
         var rangeEndExclusive = attendanceTimeZone.GetStartOfNextDay(query.To);
@@ -95,6 +106,11 @@ public sealed class DailyAttendanceService(
             activeAbsences,
             query.From,
             query.To);
+        var activeWorkAssignmentsByDate = activeWorkAssignments
+            .GroupBy(x => x.Date)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Single());
         var marksByDate = marks
             .GroupBy(mark => attendanceTimeZone.GetLocalDate(mark.OccurredAt))
             .ToDictionary(
@@ -107,6 +123,7 @@ public sealed class DailyAttendanceService(
         {
             workCalendarDays.TryGetValue(date, out var workCalendarDay);
             absencesByDate.TryGetValue(date, out var absencesForDate);
+            activeWorkAssignmentsByDate.TryGetValue(date, out var activeWorkAssignmentForDate);
             marksByDate.TryGetValue(date, out var marksForDate);
 
             var result = EvaluateDate(
@@ -114,6 +131,7 @@ public sealed class DailyAttendanceService(
                 date,
                 workCalendarDay,
                 absencesForDate ?? Array.Empty<Absence>(),
+                activeWorkAssignmentForDate,
                 marksForDate ?? Array.Empty<AttendanceMark>());
             var timeResult = timeCalculator.Calculate(
                 marksForDate ?? Array.Empty<AttendanceMark>());
@@ -182,18 +200,50 @@ public sealed class DailyAttendanceService(
             .OrderBy(x => x.OccurredAt)
             .ToList();
 
+    private async Task<EmployeeWorkAssignment?> LoadActiveWorkAssignmentForDateAsync(
+        Guid employeeId,
+        DateOnly date,
+        CancellationToken cancellationToken)
+        => await dbContext.EmployeeWorkAssignments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                x => x.EmployeeId == employeeId
+                     && x.Date == date
+                     && x.Status == WorkAssignmentStatus.Active,
+                cancellationToken);
+
+    private async Task<List<EmployeeWorkAssignment>> LoadActiveWorkAssignmentsForRangeAsync(
+        Guid employeeId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken)
+        => await dbContext.EmployeeWorkAssignments
+            .AsNoTracking()
+            .Where(x =>
+                x.EmployeeId == employeeId
+                && x.Status == WorkAssignmentStatus.Active
+                && x.Date >= from
+                && x.Date <= to)
+            .OrderBy(x => x.Date)
+            .ToListAsync(cancellationToken);
+
     private DailyAttendanceResult EvaluateDate(
         Employee employee,
         DateOnly date,
         WorkCalendarDay? workCalendarDay,
         IReadOnlyCollection<Absence> absences,
+        EmployeeWorkAssignment? activeWorkAssignment,
         IReadOnlyCollection<AttendanceMark> marks)
     {
+        var effectiveDayType = AttendanceDayTypeResolver.Resolve(
+            workCalendarDay,
+            activeWorkAssignment);
         var preAbsenceResult = evaluator.Evaluate(
             new AttendanceEvaluationContext(
                 employee,
                 date,
                 workCalendarDay,
+                effectiveDayType,
                 null,
                 marks));
 
@@ -221,6 +271,7 @@ public sealed class DailyAttendanceService(
                 employee,
                 date,
                 workCalendarDay,
+                effectiveDayType,
                 absences.SingleOrDefault(),
                 marks));
     }

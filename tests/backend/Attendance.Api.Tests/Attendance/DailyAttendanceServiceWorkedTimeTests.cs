@@ -395,7 +395,7 @@ public sealed class DailyAttendanceServiceWorkedTimeTests
             CancellationToken.None);
 
         Assert.Equal(AttendanceQueryStatus.Success, result.Status);
-        Assert.Equal(4, interceptor.ExecutedCommands);
+        Assert.Equal(5, interceptor.ExecutedCommands);
     }
 
     [Fact]
@@ -532,6 +532,39 @@ public sealed class DailyAttendanceServiceWorkedTimeTests
             """
             CREATE INDEX IX_attendance_marks_employee_id_occurred_at
             ON attendance_marks (employee_id, occurred_at);
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE employee_work_assignments (
+                id TEXT NOT NULL CONSTRAINT PK_employee_work_assignments PRIMARY KEY,
+                employee_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                assignment_type TEXT NOT NULL,
+                comment TEXT NULL,
+                status TEXT NOT NULL,
+                Version INTEGER NOT NULL DEFAULT 1,
+                CONSTRAINT FK_employee_work_assignments_employees_employee_id
+                    FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE RESTRICT
+            );
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IX_employee_work_assignments_employee_id
+            ON employee_work_assignments (employee_id);
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IX_employee_work_assignments_date
+            ON employee_work_assignments (date);
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IX_employee_work_assignments_employee_id_date
+            ON employee_work_assignments (employee_id, date);
             """);
     }
 

@@ -1,0 +1,27 @@
+meta {
+  name: Create a work assignment
+  type: http
+  seq: 3
+  tags: [
+    Work Assignments
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/work-assignments
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "employeeId": "{{employeeId}}",
+    "date": "{{toDate}}",
+    "type": "WeekendWork",
+    "comment": "Weekend support requested by operations"
+  }
+}
+
+docs {
+  Registers an exceptional work assignment for one employee and date.
+}

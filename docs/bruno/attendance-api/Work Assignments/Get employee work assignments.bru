@@ -1,0 +1,22 @@
+meta {
+  name: Get employee work assignments
+  type: http
+  seq: 6
+  tags: [
+    Work Assignments
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/employees/:employeeId/work-assignments
+  body: none
+  auth: inherit
+}
+
+params:path {
+  employeeId: {{employeeId}}
+}
+
+docs {
+  Returns the work assignment history registered for a specific employee.
+}

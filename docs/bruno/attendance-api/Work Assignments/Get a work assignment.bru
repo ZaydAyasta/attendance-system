@@ -1,0 +1,22 @@
+meta {
+  name: Get a work assignment
+  type: http
+  seq: 2
+  tags: [
+    Work Assignments
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/work-assignments/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: {{workAssignmentId}}
+}
+
+docs {
+  Returns one work assignment by its identifier.
+}
