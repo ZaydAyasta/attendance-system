@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   currentMonth: []
+  configureMonth: []
   nextMonth: []
   previousMonth: []
   retry: []
@@ -107,6 +108,13 @@ function getCellAriaLabel(date: string, label: string | null): string {
           data-testid="work-calendar-current-month"
           @click="emit('currentMonth')"
         />
+        <Button
+          label="Configurar mes"
+          icon="pi pi-calendar-plus"
+          :disabled="!ready"
+          data-testid="work-calendar-configure-month"
+          @click="emit('configureMonth')"
+        />
       </div>
 
       <span v-if="loading" class="work-calendar-month__loading"> Cargando calendario laboral... </span>
@@ -153,6 +161,7 @@ function getCellAriaLabel(date: string, label: string | null): string {
         :class="{
           'work-calendar-month__day--outside': !cell.isCurrentMonth,
           'work-calendar-month__day--disabled': !ready,
+          [`work-calendar-month__day--${cell.day?.dayType ?? 'Unconfigured'}`]: Boolean(cell.metadata),
         }"
         :disabled="!ready"
         :aria-label="getCellAriaLabel(cell.date, cell.metadata?.label ?? null)"

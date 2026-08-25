@@ -42,4 +42,19 @@ public sealed class WorkCalendarRequestValidatorTests
         Assert.False(result.IsValid);
         Assert.True(result.Errors.ContainsKey("version"));
     }
+
+    [Fact]
+    public void ValidateBulkConfigure_ReturnsErrorForDuplicateDatesAndInvalidDayType()
+    {
+        var result = WorkCalendarRequestValidator.ValidateBulkConfigure(
+            new BulkConfigureWorkCalendarRequest(
+                [
+                    new BulkConfigureWorkCalendarDayRequest(new DateOnly(2026, 8, 3), "WorkingDay", null, null),
+                    new BulkConfigureWorkCalendarDayRequest(new DateOnly(2026, 8, 3), "Invalid", null, null)
+                ], false));
+
+        Assert.False(result.IsValid);
+        Assert.True(result.Errors.ContainsKey("days"));
+        Assert.True(result.Errors.ContainsKey("days[1].dayType"));
+    }
 }

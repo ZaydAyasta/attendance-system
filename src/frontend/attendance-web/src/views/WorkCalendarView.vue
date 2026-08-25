@@ -10,6 +10,7 @@ import AppEmptyState from '@/components/state/AppEmptyState.vue'
 import AppErrorState from '@/components/state/AppErrorState.vue'
 import AppLoadingState from '@/components/state/AppLoadingState.vue'
 import WorkCalendarFormDialog from '@/modules/work-calendar/components/WorkCalendarFormDialog.vue'
+import WorkCalendarBulkConfigureDialog from '@/modules/work-calendar/components/WorkCalendarBulkConfigureDialog.vue'
 import WorkCalendarList from '@/modules/work-calendar/components/WorkCalendarList.vue'
 import WorkCalendarMonth from '@/modules/work-calendar/components/WorkCalendarMonth.vue'
 import {
@@ -23,12 +24,13 @@ import {
 import { workCalendarRangeSchema } from '@/modules/work-calendar/work-calendar.schemas'
 import {
   createWorkCalendarDay,
+  bulkConfigureWorkCalendar,
   deleteWorkCalendarDay,
   listWorkCalendarDays,
   updateWorkCalendarDay,
 } from '@/modules/work-calendar/work-calendar.service'
 import { getUserFriendlyApiError } from '@/services/api-errors'
-import type { WorkCalendarDay, WorkCalendarFormValues } from '@/modules/work-calendar/work-calendar.types'
+import type { BulkConfigureWorkCalendarRequest, WorkCalendarDay, WorkCalendarFormValues } from '@/modules/work-calendar/work-calendar.types'
 
 type WorkCalendarViewMode = 'calendar' | 'list'
 
@@ -67,6 +69,8 @@ const selectedDay = ref<WorkCalendarDay | null>(null)
 const dialogDate = ref<string | null>(null)
 const dialogDateLocked = ref(false)
 const saving = ref(false)
+const bulkDialogVisible = ref(false)
+const bulkSaving = ref(false)
 const deleteTarget = ref<WorkCalendarDay | null>(null)
 const deletingDate = ref<string | null>(null)
 
@@ -182,6 +186,10 @@ function openCreateDialog(): void {
   dialogVisible.value = true
 }
 
+function openBulkDialog(): void {
+  bulkDialogVisible.value = true
+}
+
 function openCreateDialogForDate(date: string): void {
   dialogMode.value = 'create'
   selectedDay.value = null
@@ -273,6 +281,30 @@ async function handleSave(formValues: WorkCalendarFormValues): Promise<void> {
     showErrorToast(getUserFriendlyApiError(error))
   } finally {
     saving.value = false
+  }
+}
+
+async function handleBulkConfigure(request: BulkConfigureWorkCalendarRequest): Promise<void> {
+  if (bulkSaving.value) return
+  bulkSaving.value = true
+  resetConflictMessage()
+  try {
+    const result = await bulkConfigureWorkCalendar(request)
+    bulkDialogVisible.value = false
+    await loadMonth()
+    if (listLoaded.value) await loadList()
+    showSuccessToast(result.skipped > 0
+      ? `Se configuraron ${result.created + result.updated} días y se mantuvieron ${result.skipped} configuraciones existentes.`
+      : 'Configuración del mes aplicada correctamente.')
+  } catch (error) {
+    if (isConcurrencyConflict(error)) {
+      bulkDialogVisible.value = false
+      conflictMessage.value = 'El calendario cambió mientras se aplicaba la configuración. Actualiza la información e inténtalo nuevamente.'
+      return
+    }
+    showErrorToast(getUserFriendlyApiError(error))
+  } finally {
+    bulkSaving.value = false
   }
 }
 
@@ -384,6 +416,7 @@ void loadMonth()
         @previous-month="goToPreviousMonth"
         @next-month="goToNextMonth"
         @current-month="goToCurrentMonth"
+        @configure-month="openBulkDialog"
         @retry="loadMonth"
         @select-empty="openCreateDialogForDate"
         @select-day="openEditDialog"
@@ -473,6 +506,15 @@ void loadMonth()
       @close="closeDialog"
       @delete="requestDeleteFromDialog"
       @save="handleSave"
+    />
+
+    <WorkCalendarBulkConfigureDialog
+      :visible="bulkDialogVisible"
+      :month="currentMonth"
+      :days="monthDays"
+      :saving="bulkSaving"
+      @close="bulkDialogVisible = false"
+      @apply="handleBulkConfigure"
     />
 
     <Dialog

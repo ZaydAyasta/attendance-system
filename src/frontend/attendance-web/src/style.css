@@ -680,6 +680,11 @@ img {
   cursor: not-allowed;
 }
 
+.work-calendar-month__day--WorkingDay { background: #edf8f0; border-color: #b8dec2; }
+.work-calendar-month__day--NonWorkingDay { background: #fff6e7; border-color: #f0d39a; }
+.work-calendar-month__day--Holiday { background: #f1efff; border-color: #c9c2ee; }
+.work-calendar-month__day--Unconfigured { background: #f6f7f8; border-color: #d9dde1; }
+
 .work-calendar-month__day-number {
   font-size: 1rem;
   font-weight: 700;
@@ -725,6 +730,19 @@ img {
   margin: 0;
   color: var(--app-text);
 }
+
+.work-calendar-bulk { display: grid; gap: 1rem; }
+.work-calendar-bulk__month { margin: 0; color: var(--app-muted); font-size: 1.05rem; text-transform: capitalize; }
+.work-calendar-bulk__section-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.work-calendar-bulk__section-heading h3, .work-calendar-bulk h3 { margin: 0; color: var(--app-heading); font-size: 1rem; }
+.work-calendar-bulk__help { margin: -.55rem 0 0; color: var(--app-muted); }
+.work-calendar-bulk__weekdays { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.work-calendar-bulk__weekday { display: grid; gap: .35rem; font-weight: 600; color: var(--app-text); }
+.work-calendar-bulk__weekday select { min-height: 2.5rem; border: 1px solid var(--app-border); border-radius: 8px; padding: .4rem .55rem; background: white; color: var(--app-text); }
+.work-calendar-bulk__scope { display: grid; gap: .65rem; margin: 0; padding: .85rem; border: 1px solid var(--app-border); border-radius: 10px; }
+.work-calendar-bulk__scope legend { padding: 0 .25rem; font-weight: 700; }
+.work-calendar-bulk__scope label { display: flex; gap: .5rem; align-items: center; }
+.work-calendar-bulk__summary { display: grid; gap: .4rem; margin: 0; padding-left: 1.25rem; }
 
 .app-mobile-only {
   display: none;
@@ -891,4 +909,6 @@ img {
   .work-calendar-filters__actions {
     flex-direction: column;
   }
+
+  .work-calendar-bulk__weekdays { grid-template-columns: 1fr; }
 }

@@ -147,6 +147,73 @@ public sealed class WorkCalendarService(AttendanceDbContext dbContext)
         return new WorkCalendarWriteResult(WorkCalendarWriteStatus.Success);
     }
 
+    public async Task<WorkCalendarWriteResult<BulkConfigureWorkCalendarResponse>> BulkConfigureAsync(
+        BulkConfigureWorkCalendarCommand command,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        try
+        {
+            var dates = command.Days.Select(x => x.Date).ToList();
+            var existingByDate = await dbContext.WorkCalendarDays
+                .Where(x => dates.Contains(x.Date))
+                .ToDictionaryAsync(x => x.Date, cancellationToken);
+            var created = 0;
+            var updated = 0;
+            var skipped = 0;
+
+            foreach (var day in command.Days)
+            {
+                if (!existingByDate.TryGetValue(day.Date, out var existing))
+                {
+                    dbContext.WorkCalendarDays.Add(WorkCalendarDay.Create(day.Date, day.DayType, day.Description));
+                    created++;
+                    continue;
+                }
+
+                if (!command.OverwriteExisting)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                // An overwrite must include the xmin that was read by the client.
+                if (!day.ExpectedVersion.HasValue)
+                {
+                    await RollbackAsync(transaction, cancellationToken);
+                    return new WorkCalendarWriteResult<BulkConfigureWorkCalendarResponse>(
+                        WorkCalendarWriteStatus.ConcurrencyConflict);
+                }
+
+                existing.Update(day.DayType, day.Description);
+                dbContext.Entry(existing).Property(x => x.Version).OriginalValue = day.ExpectedVersion.Value;
+                updated++;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+
+            return new WorkCalendarWriteResult<BulkConfigureWorkCalendarResponse>(
+                WorkCalendarWriteStatus.Success,
+                new BulkConfigureWorkCalendarResponse(created, updated, skipped));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await RollbackAsync(transaction, cancellationToken);
+            return new WorkCalendarWriteResult<BulkConfigureWorkCalendarResponse>(
+                WorkCalendarWriteStatus.ConcurrencyConflict);
+        }
+        catch
+        {
+            await RollbackAsync(transaction, cancellationToken);
+            throw;
+        }
+    }
+
     private static WorkCalendarDayResponse Map(WorkCalendarDay workCalendarDay)
         => new(
             workCalendarDay.Date,
@@ -161,4 +228,9 @@ public sealed class WorkCalendarService(AttendanceDbContext dbContext)
                postgresException.ConstraintName,
                UniqueDateIndexName,
                StringComparison.OrdinalIgnoreCase);
+
+    private static Task RollbackAsync(
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction,
+        CancellationToken cancellationToken)
+        => transaction is null ? Task.CompletedTask : transaction.RollbackAsync(cancellationToken);
 }

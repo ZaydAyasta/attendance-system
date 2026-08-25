@@ -1,6 +1,8 @@
 import apiClient from '@/services/api-client'
 import type {
   CreateWorkCalendarDayRequest,
+  BulkConfigureWorkCalendarRequest,
+  BulkConfigureWorkCalendarResponse,
   UpdateWorkCalendarDayRequest,
   WorkCalendarDay,
   WorkCalendarRangeFilters,
@@ -26,6 +28,16 @@ export async function createWorkCalendarDay(
 ): Promise<WorkCalendarDay> {
   const response = await apiClient.post<WorkCalendarDay>(workCalendarBasePath, request)
 
+  return response.data
+}
+
+export async function bulkConfigureWorkCalendar(
+  request: BulkConfigureWorkCalendarRequest,
+): Promise<BulkConfigureWorkCalendarResponse> {
+  const response = await apiClient.post<BulkConfigureWorkCalendarResponse>(
+    `${workCalendarBasePath}/bulk`,
+    request,
+  )
   return response.data
 }
 

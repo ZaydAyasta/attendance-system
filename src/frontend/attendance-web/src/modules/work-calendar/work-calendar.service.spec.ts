@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import apiClient from '@/services/api-client'
 import {
+  bulkConfigureWorkCalendar,
   createWorkCalendarDay,
   deleteWorkCalendarDay,
   listWorkCalendarDays,
@@ -60,6 +61,15 @@ describe('workCalendarService', () => {
       dayType: 'Holiday',
       description: 'Feriado',
     })
+  })
+
+  it('posts bulk configuration to the bulk URL', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { created: 1, updated: 0, skipped: 0 } } as never)
+    const request = { days: [{ date: '2026-08-03', dayType: 'WorkingDay' as const, description: null }], overwriteExisting: false }
+
+    await bulkConfigureWorkCalendar(request)
+
+    expect(apiClient.post).toHaveBeenCalledWith('/work-calendar/bulk', request)
   })
 
   it('puts the update to the date URL with version', async () => {

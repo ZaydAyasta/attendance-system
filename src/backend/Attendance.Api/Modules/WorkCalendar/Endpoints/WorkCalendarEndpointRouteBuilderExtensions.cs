@@ -41,6 +41,15 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
 
+        group.MapPost("/bulk", BulkConfigureAsync)
+            .WithName("BulkConfigureWorkCalendar")
+            .WithSummary("Bulk configure work calendar days")
+            .WithDescription("Atomically creates missing calendar days and, when requested, replaces existing days with optimistic concurrency protection.")
+            .Accepts<BulkConfigureWorkCalendarRequest>("application/json")
+            .Produces<BulkConfigureWorkCalendarResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
         group.MapPut("/{date}", UpdateAsync)
             .WithName("UpdateWorkCalendarDay")
             .WithSummary("Update a work calendar day")
@@ -172,6 +181,26 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             _ => TypedResults.Problem(
                 title: "Unexpected error.",
                 detail: "An unexpected error occurred while updating the work calendar day.")
+        };
+    }
+
+    private static async Task<IResult> BulkConfigureAsync(
+        BulkConfigureWorkCalendarRequest request,
+        WorkCalendarService service,
+        CancellationToken cancellationToken)
+    {
+        var validation = WorkCalendarRequestValidator.ValidateBulkConfigure(request);
+        if (!validation.IsValid)
+            return TypedResults.ValidationProblem(validation.Errors);
+
+        var result = await service.BulkConfigureAsync(validation.Value!, cancellationToken);
+        return result.Status switch
+        {
+            WorkCalendarWriteStatus.Success => TypedResults.Ok(result.Value),
+            WorkCalendarWriteStatus.ConcurrencyConflict => TypedResults.Conflict(CreateProblemDetails(
+                "Concurrency conflict.",
+                "One or more existing work calendar days changed after the calendar was loaded. Refresh and try again.")),
+            _ => TypedResults.Problem(title: "Unexpected error.", detail: "An unexpected error occurred while configuring the work calendar.")
         };
     }
 

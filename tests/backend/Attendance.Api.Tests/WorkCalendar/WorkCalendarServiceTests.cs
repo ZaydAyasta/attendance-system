@@ -1,5 +1,6 @@
 using Attendance.Api.BuildingBlocks.Persistence;
 using Attendance.Api.Modules.WorkCalendar.Application;
+using Attendance.Api.Modules.WorkCalendar.Contracts;
 using Attendance.Api.Modules.WorkCalendar.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -207,6 +208,47 @@ public sealed class WorkCalendarServiceTests
         Assert.Equal(WorkCalendarWriteStatus.Success, result.Status);
         Assert.False(await dbContext.WorkCalendarDays
             .AnyAsync(x => x.Date == new DateOnly(2026, 8, 30)));
+    }
+
+    [Fact]
+    public async Task BulkConfigureAsync_CreatesDaysAndSkipsExistingHolidayWithoutOverwrite()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.WorkCalendarDays.Add(WorkCalendarDay.Create(new DateOnly(2026, 8, 20), DayType.Holiday, "Feriado"));
+        await dbContext.SaveChangesAsync();
+        var service = new WorkCalendarService(dbContext);
+
+        var result = await service.BulkConfigureAsync(new BulkConfigureWorkCalendarCommand(
+            [
+                new BulkConfigureWorkCalendarDayCommand(new DateOnly(2026, 8, 19), DayType.WorkingDay, null, null),
+                new BulkConfigureWorkCalendarDayCommand(new DateOnly(2026, 8, 20), DayType.WorkingDay, null, null),
+                new BulkConfigureWorkCalendarDayCommand(new DateOnly(2026, 8, 21), DayType.NonWorkingDay, null, null)
+            ], false), CancellationToken.None);
+
+        Assert.Equal(WorkCalendarWriteStatus.Success, result.Status);
+        Assert.Equal(new BulkConfigureWorkCalendarResponse(2, 0, 1), result.Value);
+        var holiday = await dbContext.WorkCalendarDays.SingleAsync(x => x.Date == new DateOnly(2026, 8, 20));
+        Assert.Equal(DayType.Holiday, holiday.DayType);
+        Assert.Equal("Feriado", holiday.Description);
+    }
+
+    [Fact]
+    public async Task BulkConfigureAsync_OverwritesExistingOnlyWithMatchingVersion()
+    {
+        await using var dbContext = CreateDbContext();
+        var day = WorkCalendarDay.Create(new DateOnly(2026, 8, 20), DayType.Holiday, "Feriado");
+        dbContext.WorkCalendarDays.Add(day);
+        await dbContext.SaveChangesAsync();
+        SetVersion(dbContext, day, 7);
+        await dbContext.SaveChangesAsync();
+        var service = new WorkCalendarService(dbContext);
+
+        var result = await service.BulkConfigureAsync(new BulkConfigureWorkCalendarCommand(
+            [new BulkConfigureWorkCalendarDayCommand(day.Date, DayType.WorkingDay, null, 7)], true), CancellationToken.None);
+
+        Assert.Equal(WorkCalendarWriteStatus.Success, result.Status);
+        Assert.Equal(new BulkConfigureWorkCalendarResponse(0, 1, 0), result.Value);
+        Assert.Equal(DayType.WorkingDay, (await dbContext.WorkCalendarDays.SingleAsync()).DayType);
     }
 
     private static AttendanceDbContext CreateDbContext()

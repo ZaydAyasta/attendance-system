@@ -31,3 +31,21 @@ export interface WorkCalendarFormValues {
   dayType: WorkCalendarDayType
   description: string | null
 }
+
+export interface BulkConfigureWorkCalendarDayRequest {
+  date: string
+  dayType: WorkCalendarDayType
+  description: string | null
+  version?: number
+}
+
+export interface BulkConfigureWorkCalendarRequest {
+  days: BulkConfigureWorkCalendarDayRequest[]
+  overwriteExisting: boolean
+}
+
+export interface BulkConfigureWorkCalendarResponse {
+  created: number
+  updated: number
+  skipped: number
+}

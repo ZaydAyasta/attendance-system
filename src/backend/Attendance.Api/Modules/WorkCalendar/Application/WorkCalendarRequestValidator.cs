@@ -5,6 +5,7 @@ namespace Attendance.Api.Modules.WorkCalendar.Application;
 
 public static class WorkCalendarRequestValidator
 {
+    public const int BulkMaxDays = 366;
     private static readonly string[] AllowedDayTypes =
     [
         nameof(DayType.WorkingDay),
@@ -115,16 +116,56 @@ public static class WorkCalendarRequestValidator
                 errors);
     }
 
+    public static WorkCalendarValidationResult<BulkConfigureWorkCalendarCommand>
+        ValidateBulkConfigure(BulkConfigureWorkCalendarRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var days = request.Days;
+        if (days is null || days.Count == 0)
+            errors["days"] = ["At least one day must be provided."];
+        else if (days.Count > BulkMaxDays)
+            errors["days"] = [$"A bulk request cannot contain more than {BulkMaxDays} days."];
+
+        if (days is not null && days.Count > 0)
+        {
+            if (days.GroupBy(x => x.Date).Any(x => x.Count() > 1))
+                errors["days"] = ["Dates must not be duplicated in a bulk request."];
+
+            for (var index = 0; index < days.Count; index++)
+            {
+                var day = days[index];
+                if (day.Date == default)
+                    errors[$"days[{index}].date"] = ["Date must be a non-default value."];
+                ValidateDescription(day.Description, errors, $"days[{index}].description");
+                if (!TryParseDayType(day.DayType, out _))
+                    errors[$"days[{index}].dayType"] =
+                        [$"DayType must be one of: {string.Join(", ", AllowedDayTypes)}."];
+            }
+        }
+
+        if (errors.Count > 0)
+            return WorkCalendarValidationResult<BulkConfigureWorkCalendarCommand>.Failure(errors);
+
+        return WorkCalendarValidationResult<BulkConfigureWorkCalendarCommand>.Success(
+            new BulkConfigureWorkCalendarCommand(days!.Select(day =>
+            {
+                TryParseDayType(day.DayType, out var dayType);
+                return new BulkConfigureWorkCalendarDayCommand(
+                    day.Date, dayType, NormalizeDescription(day.Description), day.Version);
+            }).ToList(), request.OverwriteExisting));
+    }
+
     private static void ValidateDescription(
         string? description,
-        Dictionary<string, string[]> errors)
+        Dictionary<string, string[]> errors,
+        string key = "description")
     {
         var normalizedDescription = NormalizeDescription(description);
 
         if (normalizedDescription is not null
             && normalizedDescription.Length > WorkCalendarDay.DescriptionMaxLength)
         {
-            errors["description"] =
+            errors[key] =
             [
                 $"Description cannot exceed {WorkCalendarDay.DescriptionMaxLength} characters."
             ];

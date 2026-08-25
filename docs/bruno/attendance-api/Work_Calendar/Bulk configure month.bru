@@ -1,0 +1,26 @@
+meta {
+  name: Bulk configure month
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/work-calendar/bulk
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "days": [
+      { "date": "2026-08-03", "dayType": "WorkingDay", "description": null },
+      { "date": "2026-08-04", "dayType": "WorkingDay", "description": null },
+      { "date": "2026-08-08", "dayType": "NonWorkingDay", "description": null }
+    ],
+    "overwriteExisting": false
+  }
+}
