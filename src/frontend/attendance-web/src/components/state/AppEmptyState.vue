@@ -3,11 +3,12 @@ import Button from 'primevue/button'
 
 interface Props {
   actionLabel?: string
-  description: string
+  description?: string
   title?: string
 }
 
 withDefaults(defineProps<Props>(), {
+  description: '',
   title: 'No hay información para mostrar.',
 })
 

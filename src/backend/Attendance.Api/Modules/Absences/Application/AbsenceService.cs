@@ -1,6 +1,7 @@
 using Attendance.Api.BuildingBlocks.Persistence;
 using Attendance.Api.Modules.Absences.Contracts;
 using Attendance.Api.Modules.Absences.Domain;
+using Attendance.Api.Modules.Employees.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.Modules.Absences.Application;
@@ -10,19 +11,25 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
     public async Task<IReadOnlyList<AbsenceResponse>> ListAsync(
         AbsenceQueryFilters filters,
         CancellationToken cancellationToken)
-        => await BuildQuery(filters)
-            .OrderByDescending(x => x.Period.Start)
-            .ThenByDescending(x => x.Period.End)
-            .Select(MapExpression())
+        => await (from absence in BuildQuery(filters)
+                  join employee in dbContext.Employees.AsNoTracking() on absence.EmployeeId equals employee.Id
+                  orderby absence.Period.Start descending, absence.Period.End descending
+                  select new AbsenceResponse(
+                      absence.Id, absence.EmployeeId,
+                      new AbsenceEmployeeSummaryResponse(employee.EmployeeCode, employee.FirstName + " " + employee.LastName),
+                      absence.Period.Start, absence.Period.End, absence.Type.ToString(), absence.Status.ToString(), absence.Reason, absence.Notes, absence.Version))
             .ToListAsync(cancellationToken);
 
     public Task<AbsenceResponse?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken)
-        => dbContext.Absences
-            .AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(MapExpression())
+        => (from absence in dbContext.Absences.AsNoTracking()
+            join employee in dbContext.Employees.AsNoTracking() on absence.EmployeeId equals employee.Id
+            where absence.Id == id
+            select new AbsenceResponse(
+                absence.Id, absence.EmployeeId,
+                new AbsenceEmployeeSummaryResponse(employee.EmployeeCode, employee.FirstName + " " + employee.LastName),
+                absence.Period.Start, absence.Period.End, absence.Type.ToString(), absence.Status.ToString(), absence.Reason, absence.Notes, absence.Version))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<AbsenceEmployeeHistoryResult> GetEmployeeHistoryAsync(
@@ -96,7 +103,7 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
 
         return new AbsenceWriteResult<AbsenceResponse>(
             AbsenceWriteStatus.Success,
-            Map(absence));
+            (await GetByIdAsync(absence.Id, cancellationToken))!);
     }
 
     public async Task<AbsenceWriteResult<AbsenceResponse>> UpdateAsync(
@@ -157,7 +164,7 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
 
         return new AbsenceWriteResult<AbsenceResponse>(
             AbsenceWriteStatus.Success,
-            Map(absence));
+            (await GetByIdAsync(absence.Id, cancellationToken))!);
     }
 
     public async Task<AbsenceWriteResult> CancelAsync(
@@ -257,28 +264,4 @@ public sealed class AbsenceService(AttendanceDbContext dbContext)
                 cancellationToken);
     }
 
-    private static System.Linq.Expressions.Expression<Func<Absence, AbsenceResponse>>
-        MapExpression()
-        => x => new AbsenceResponse(
-            x.Id,
-            x.EmployeeId,
-            x.Period.Start,
-            x.Period.End,
-            x.Type.ToString(),
-            x.Status.ToString(),
-            x.Reason,
-            x.Notes,
-            x.Version);
-
-    private static AbsenceResponse Map(Absence absence)
-        => new(
-            absence.Id,
-            absence.EmployeeId,
-            absence.Period.Start,
-            absence.Period.End,
-            absence.Type.ToString(),
-            absence.Status.ToString(),
-            absence.Reason,
-            absence.Notes,
-            absence.Version);
 }

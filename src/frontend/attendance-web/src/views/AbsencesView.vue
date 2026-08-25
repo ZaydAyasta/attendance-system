@@ -1,38 +1,28 @@
 <script setup lang="ts">
-import AppPageHeader from '@/components/app/AppPageHeader.vue'
-import AppEmptyState from '@/components/state/AppEmptyState.vue'
+import axios from 'axios'
+import Button from 'primevue/button'; import Column from 'primevue/column'; import DataTable from 'primevue/datatable'; import Dialog from 'primevue/dialog'; import Message from 'primevue/message'
+import { reactive, ref } from 'vue'; import { z } from 'zod'; import { useToast } from 'primevue/usetoast'
+import AppPageHeader from '@/components/app/AppPageHeader.vue'; import AppEmptyState from '@/components/state/AppEmptyState.vue'; import AppErrorState from '@/components/state/AppErrorState.vue'; import AppLoadingState from '@/components/state/AppLoadingState.vue'
+import { listActiveEmployees, type EmployeeOption } from '@/modules/employees/employees.service'; import { cancelAbsence, createAbsence, listAbsences, updateAbsence } from '@/modules/absences/absences.service'; import { absenceStatusLabels, absenceTypeLabels, formatAbsenceDate } from '@/modules/absences/absences.presentation'; import { absenceTypes, type Absence, type AbsenceStatus, type AbsenceType } from '@/modules/absences/absences.types'; import { getUserFriendlyApiError } from '@/services/api-errors'
+const toast=useToast(), d=new Date(), monthStart=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10), monthEnd=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10)
+const filters=reactive<{from:string;to:string;status:''|AbsenceStatus}>({from:monthStart,to:monthEnd,status:''}), items=ref<Absence[]>([]), loading=ref(false), loaded=ref(false), error=ref<string|null>(null), employees=ref<EmployeeOption[]>([]), employeesLoading=ref(false), employeesError=ref<string|null>(null), formVisible=ref(false), saving=ref(false), selected=ref<Absence|null>(null), cancelTarget=ref<Absence|null>(null), conflict=ref<string|null>(null), formError=ref('')
+const form=reactive<{employeeId:string;startDate:string;endDate:string;type:AbsenceType;reason:string;notes:string}>({employeeId:'',startDate:monthStart,endDate:monthEnd,type:'Vacation',reason:'',notes:''})
+const schema=z.object({employeeId:z.string().uuid('Selecciona un empleado.'),startDate:z.string(),endDate:z.string()}).refine(v=>v.endDate>=v.startDate,{path:['endDate'],message:'La fecha final no puede ser anterior a la fecha inicial.'})
+const is409=(e:unknown)=>axios.isAxiosError(e)&&e.response?.status===409
+async function load(){loading.value=true;error.value=null;try{items.value=await listAbsences({from:filters.from,to:filters.to,...(filters.status?{status:filters.status}:{})});loaded.value=true}catch(e){error.value=getUserFriendlyApiError(e)}finally{loading.value=false}}
+async function loadEmployees(){employeesLoading.value=true;employeesError.value=null;try{employees.value=await listActiveEmployees();if(!employees.value.length)employeesError.value='No hay empleados activos disponibles.'}catch{employeesError.value='No pudimos cargar los empleados.'}finally{employeesLoading.value=false}}
+function openCreate(){selected.value=null;Object.assign(form,{employeeId:'',startDate:filters.from,endDate:filters.to,type:'Vacation',reason:'',notes:''});formError.value='';formVisible.value=true;void loadEmployees()}
+function openEdit(x:Absence){selected.value=x;Object.assign(form,{employeeId:x.employeeId,startDate:x.startDate,endDate:x.endDate,type:x.type,reason:x.reason??'',notes:x.notes??''});formVisible.value=true}
+async function save(){const result=schema.safeParse(form);if(!result.success){formError.value=result.error.issues[0]?.message??'';return}saving.value=true;try{const payload={startDate:form.startDate,endDate:form.endDate,type:form.type,reason:form.reason.trim()||null,notes:form.notes.trim()||null};if(selected.value)await updateAbsence(selected.value.id,{...payload,version:selected.value.version});else await createAbsence({...payload,employeeId:form.employeeId});formVisible.value=false;toast.add({severity:'success',summary:'Listo',detail:selected.value?'Cambios guardados.':'Ausencia registrada correctamente.',life:3000});await load()}catch(e){if(is409(e)){formVisible.value=false;conflict.value='Esta ausencia fue modificada por otra persona. Actualiza la información e inténtalo nuevamente.'}else formError.value=getUserFriendlyApiError(e)}finally{saving.value=false}}
+async function confirmCancel(){if(!cancelTarget.value)return;try{await cancelAbsence(cancelTarget.value.id,cancelTarget.value.version);cancelTarget.value=null;await load()}catch(e){if(is409(e))conflict.value='Esta ausencia fue modificada por otra persona. Actualiza la información e inténtalo nuevamente.'}}
+void load()
 </script>
-
 <template>
-  <section>
-    <AppPageHeader
-      title="Ausencias"
-      description="Consulta y organiza la información de ausencias."
-    />
-
-    <div class="app-grid app-grid--two">
-      <article class="app-surface">
-        <h2 class="app-surface__title">Información disponible</h2>
-        <ul class="app-feature-list">
-          <li>
-            <i class="pi pi-file-edit" aria-hidden="true"></i>
-            <span>Revisa ausencias autorizadas de forma simple y ordenada.</span>
-          </li>
-          <li>
-            <i class="pi pi-info-circle" aria-hidden="true"></i>
-            <span>Usa mensajes claros para facilitar la revisión diaria.</span>
-          </li>
-        </ul>
-      </article>
-
-      <article class="app-surface">
-        <h2 class="app-surface__title">Sin información disponible</h2>
-        <AppEmptyState
-          title="No hay ausencias registradas para este período."
-          description="Aún no hay información para mostrar."
-          action-label="Registrar ausencia"
-        />
-      </article>
-    </div>
-  </section>
+<section><AppPageHeader title="Ausencias" description="Registra y consulta ausencias autorizadas de los empleados." action-label="Registrar ausencia" action-icon="pi pi-plus" @action="openCreate"/>
+<Message v-if="conflict" severity="warn">{{ conflict }} <Button label="Actualizar" text @click="load"/></Message>
+<form class="absence-filters app-surface" @submit.prevent="load"><label>Desde<input v-model="filters.from" type="date"/></label><label>Hasta<input v-model="filters.to" type="date"/></label><label>Estado<select v-model="filters.status"><option value="">Todos</option><option value="Active">Activa</option><option value="Cancelled">Cancelada</option></select></label><Button label="Consultar" type="submit"/></form>
+<AppLoadingState v-if="loading" label="Cargando ausencias..."/><AppErrorState v-else-if="error" title="No pudimos cargar las ausencias." :description="error" @retry="load"/><AppEmptyState v-else-if="loaded&&!items.length" title="No hay ausencias registradas para este período." description="Registra una ausencia autorizada para este rango." action-label="Registrar ausencia" @action="openCreate"/>
+<div v-else class="absence-list"><DataTable :value="items" data-key="id" class="absence-table"><Column header="Empleado"><template #body="{data}"><strong>{{data.employee.fullName}}</strong><small>{{data.employee.employeeCode}}</small></template></Column><Column header="Tipo"><template #body="{data}">{{absenceTypeLabels[data.type]}}</template></Column><Column header="Desde"><template #body="{data}">{{formatAbsenceDate(data.startDate)}}</template></Column><Column header="Hasta"><template #body="{data}">{{formatAbsenceDate(data.endDate)}}</template></Column><Column header="Estado"><template #body="{data}">{{absenceStatusLabels[data.status]}}</template></Column><Column header="Motivo"><template #body="{data}">{{data.reason??'Sin motivo'}}</template></Column><Column header="Acciones"><template #body="{data}"><template v-if="data.status==='Active'"><Button label="Editar" text @click="openEdit(data)"/><Button label="Cancelar ausencia" text severity="secondary" @click="cancelTarget=data"/></template></template></Column></DataTable><div class="absence-cards"><article v-for="item in items" :key="item.id" class="app-surface absence-card"><strong>{{item.employee.fullName}}</strong><small>{{item.employee.employeeCode}}</small><span>{{absenceTypeLabels[item.type]}}</span><span>{{formatAbsenceDate(item.startDate)}} — {{formatAbsenceDate(item.endDate)}}</span><span>{{absenceStatusLabels[item.status]}}</span><div v-if="item.status==='Active'"><Button label="Editar" text @click="openEdit(item)"/><Button label="Cancelar ausencia" text severity="secondary" @click="cancelTarget=item"/></div></article></div></div>
+<Dialog :visible="formVisible" modal :header="selected?'Editar ausencia':'Registrar ausencia'" :style="{width:'min(100%, 38rem)'}" @update:visible="formVisible=false"><form class="absence-form" @submit.prevent="save"><label>Empleado<select v-model="form.employeeId" :disabled="Boolean(selected)||employeesLoading"><option value="">{{employeesLoading?'Cargando empleados...':'Selecciona un empleado'}}</option><option v-for="x in employees" :key="x.id" :value="x.id">{{x.fullName}} — {{x.employeeCode}}</option></select></label><Message v-if="employeesError" severity="warn">{{employeesError}} <Button v-if="employeesError==='No pudimos cargar los empleados.'" label="Volver a intentar" text @click="loadEmployees"/></Message><label>Tipo de ausencia<select v-model="form.type"><option v-for="x in absenceTypes" :key="x" :value="x">{{absenceTypeLabels[x]}}</option></select></label><label>Desde<input v-model="form.startDate" type="date"/></label><label>Hasta<input v-model="form.endDate" type="date"/></label><label>Motivo<input v-model="form.reason" maxlength="500"/></label><label>Notas<textarea v-model="form.notes" maxlength="1000"/></label><Message v-if="formError" severity="error">{{formError}}</Message><Button label="Cancelar" text type="button" @click="formVisible=false"/><Button :label="selected?'Guardar cambios':'Registrar ausencia'" type="submit" :loading="saving" :disabled="saving||Boolean(employeesError)"/></form></Dialog>
+<Dialog :visible="Boolean(cancelTarget)" modal header="Cancelar ausencia" @update:visible="cancelTarget=null"><p>La ausencia quedará registrada en el historial como cancelada.</p><template #footer><Button label="Volver" text @click="cancelTarget=null"/><Button label="Cancelar ausencia" severity="secondary" @click="confirmCancel"/></template></Dialog></section>
 </template>

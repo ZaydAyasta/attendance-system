@@ -3,6 +3,7 @@ namespace Attendance.Api.Modules.Absences.Contracts;
 public sealed record AbsenceResponse(
     Guid Id,
     Guid EmployeeId,
+    AbsenceEmployeeSummaryResponse Employee,
     DateOnly StartDate,
     DateOnly EndDate,
     string Type,

@@ -731,6 +731,17 @@ img {
   color: var(--app-text);
 }
 
+.absence-filters, .absence-form { display: grid; gap: .85rem; margin-bottom: 1rem; }
+.absence-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+.absence-filters label, .absence-form label { display: grid; gap: .35rem; font-weight: 600; }
+.absence-filters input, .absence-filters select, .absence-form input, .absence-form select, .absence-form textarea { width: 100%; min-height: 2.5rem; padding: .45rem .55rem; border: 1px solid var(--app-border); border-radius: 8px; font: inherit; }
+.absence-form textarea { min-height: 5rem; }
+.absence-list { display: grid; gap: .75rem; }
+.absence-card { display: grid; grid-template-columns: 1.4fr 1fr 1.3fr .8fr 1.4fr auto; align-items: center; gap: .75rem; }
+.absence-table small, .absence-card small { display: block; color: var(--app-muted); margin-top: .15rem; }
+.absence-cards { display: none; }
+@media (max-width: 640px) { .absence-filters, .absence-card { grid-template-columns: 1fr; } .absence-card { gap: .45rem; } .absence-table { display: none; } .absence-cards { display: grid; gap: .75rem; } }
+
 .work-calendar-bulk { display: grid; gap: 1rem; }
 .work-calendar-bulk__month { margin: 0; color: var(--app-muted); font-size: 1.05rem; text-transform: capitalize; }
 .work-calendar-bulk__section-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
