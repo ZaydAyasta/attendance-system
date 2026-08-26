@@ -736,11 +736,21 @@ img {
 .absence-filters label, .absence-form label { display: grid; gap: .35rem; font-weight: 600; }
 .absence-filters input, .absence-filters select, .absence-form input, .absence-form select, .absence-form textarea { width: 100%; min-height: 2.5rem; padding: .45rem .55rem; border: 1px solid var(--app-border); border-radius: 8px; font: inherit; }
 .absence-form textarea { min-height: 5rem; }
-.absence-list { display: grid; gap: .75rem; }
-.absence-card { display: grid; grid-template-columns: 1.4fr 1fr 1.3fr .8fr 1.4fr auto; align-items: center; gap: .75rem; }
+.absence-list { display: grid; min-width: 0; max-width: 100%; gap: .75rem; }
+.absence-table { min-width: 0; max-width: 100%; }
+.absence-table .p-datatable-table-container { max-width: 100%; overflow-x: auto; }
+.absence-table .p-datatable-table { width: 100%; min-width: 100%; table-layout: fixed; }
+.absence-table th, .absence-table td { overflow-wrap: anywhere; vertical-align: top; white-space: normal; }
+.absence-card { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-items: start; gap: .75rem; }
+.absence-card.app-surface { max-width: 100%; }
 .absence-table small, .absence-card small { display: block; color: var(--app-muted); margin-top: .15rem; }
 .absence-cards { display: none; }
-@media (max-width: 640px) { .absence-filters, .absence-card { grid-template-columns: 1fr; } .absence-card { gap: .45rem; } .absence-table { display: none; } .absence-cards { display: grid; gap: .75rem; } }
+.absence-card__actions { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
+.app-form-dialog { width: min(calc(100vw - 2rem), 38rem) !important; margin: 1rem; }
+.app-form-dialog .p-dialog-content { overflow-x: hidden; }
+.app-access-denied { max-width: 42rem; padding: 1.5rem; }
+.app-access-denied h1 { margin: 0 0 .4rem; font-size: 1.25rem; color: var(--app-heading); }
+.app-access-denied p { margin: 0; color: var(--app-muted); }
 
 .work-calendar-bulk { display: grid; gap: 1rem; }
 .work-calendar-bulk__month { margin: 0; color: var(--app-muted); font-size: 1.05rem; text-transform: capitalize; }
@@ -793,6 +803,24 @@ img {
 
   .app-shell__content {
     padding: 1rem;
+  }
+
+  .absence-filters,
+  .absence-card {
+    grid-template-columns: 1fr;
+  }
+
+  .absence-card {
+    gap: .45rem;
+  }
+
+  .absence-table {
+    display: none;
+  }
+
+  .absence-cards {
+    display: grid;
+    gap: .75rem;
   }
 
   .app-page-header {

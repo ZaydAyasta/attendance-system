@@ -6,12 +6,20 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppNavigationMenu from '@/components/app/AppNavigationMenu.vue'
 import { useAppShellStore } from '@/stores/app-shell'
+import type { UserRole } from '@/types/user-role'
 
 const route = useRoute()
 const appShellStore = useAppShellStore()
 const { currentRole, mobileNavigationOpen, roleOptions, visibleNavigationItems } =
   storeToRefs(appShellStore)
 const compactNavigation = ref(false)
+
+// This only protects the provisional frontend navigation. Production access must
+// be enforced by backend policies and claims tied to the authenticated identity.
+const hasRouteAccess = computed(() => {
+  const allowedRoles = route.meta.allowedRoles as UserRole[] | undefined
+  return allowedRoles === undefined || allowedRoles.includes(currentRole.value)
+})
 
 let compactNavigationQuery: MediaQueryList | null = null
 
@@ -106,7 +114,11 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="app-shell__content">
-          <RouterView />
+          <section v-if="!hasRouteAccess" class="app-access-denied app-surface" role="alert">
+            <h1>No tienes acceso a esta sección.</h1>
+            <p>La vista provisional por rol no reemplaza la autorización real del backend.</p>
+          </section>
+          <RouterView v-else />
         </div>
       </main>
     </div>

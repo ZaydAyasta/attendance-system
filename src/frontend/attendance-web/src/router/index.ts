@@ -31,6 +31,7 @@ const router = createRouter({
           component: AttendanceView,
           meta: {
             title: 'Asistencia',
+            allowedRoles: ['admin', 'user'],
           },
         },
         {
@@ -39,6 +40,7 @@ const router = createRouter({
           component: AbsencesView,
           meta: {
             title: 'Ausencias',
+            allowedRoles: ['admin', 'user'],
           },
         },
         {
@@ -47,6 +49,7 @@ const router = createRouter({
           component: WorkCalendarView,
           meta: {
             title: 'Calendario laboral',
+            allowedRoles: ['admin'],
           },
         },
         {
@@ -55,6 +58,7 @@ const router = createRouter({
           component: WorkAssignmentsView,
           meta: {
             title: 'Asignaciones',
+            allowedRoles: ['admin'],
           },
         },
         {
@@ -63,6 +67,7 @@ const router = createRouter({
           component: EmployeesView,
           meta: {
             title: 'Empleados',
+            allowedRoles: ['admin'],
           },
         },
         {
@@ -71,6 +76,7 @@ const router = createRouter({
           component: ReportsView,
           meta: {
             title: 'Reportes',
+            allowedRoles: ['admin'],
           },
         },
         {
@@ -79,6 +85,7 @@ const router = createRouter({
           component: SystemView,
           meta: {
             title: 'Sistema',
+            allowedRoles: ['it'],
           },
         },
         {
@@ -87,6 +94,7 @@ const router = createRouter({
           component: CheckpointsView,
           meta: {
             title: 'Checkpoints',
+            allowedRoles: ['it'],
           },
         },
       ],
