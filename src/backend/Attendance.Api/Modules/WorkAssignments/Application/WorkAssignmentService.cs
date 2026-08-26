@@ -16,19 +16,23 @@ public sealed class WorkAssignmentService(AttendanceDbContext dbContext)
     public async Task<IReadOnlyList<WorkAssignmentResponse>> ListAsync(
         WorkAssignmentQueryFilters filters,
         CancellationToken cancellationToken)
-        => await BuildQuery(filters)
-            .OrderByDescending(x => x.Date)
-            .ThenByDescending(x => x.Id)
-            .Select(MapExpression())
+        => await (from assignment in BuildQuery(filters)
+                  join employee in dbContext.Employees.AsNoTracking() on assignment.EmployeeId equals employee.Id
+                  orderby assignment.Date descending, assignment.Id descending
+                  select new WorkAssignmentResponse(assignment.Id, assignment.EmployeeId,
+                      new WorkAssignmentEmployeeSummaryResponse(employee.EmployeeCode, employee.FirstName + " " + employee.LastName),
+                      assignment.Date, assignment.Type.ToString(), assignment.Comment, assignment.Status.ToString(), assignment.Version))
             .ToListAsync(cancellationToken);
 
     public Task<WorkAssignmentResponse?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken)
-        => dbContext.EmployeeWorkAssignments
-            .AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(MapExpression())
+        => (from assignment in dbContext.EmployeeWorkAssignments.AsNoTracking()
+            join employee in dbContext.Employees.AsNoTracking() on assignment.EmployeeId equals employee.Id
+            where assignment.Id == id
+            select new WorkAssignmentResponse(assignment.Id, assignment.EmployeeId,
+                new WorkAssignmentEmployeeSummaryResponse(employee.EmployeeCode, employee.FirstName + " " + employee.LastName),
+                assignment.Date, assignment.Type.ToString(), assignment.Comment, assignment.Status.ToString(), assignment.Version))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<WorkAssignmentEmployeeHistoryResult> GetEmployeeHistoryAsync(
@@ -117,7 +121,7 @@ public sealed class WorkAssignmentService(AttendanceDbContext dbContext)
 
         return new WorkAssignmentWriteResult<WorkAssignmentResponse>(
             WorkAssignmentWriteStatus.Success,
-            Map(workAssignment));
+            (await GetByIdAsync(workAssignment.Id, cancellationToken))!);
     }
 
     public async Task<WorkAssignmentWriteResult<WorkAssignmentResponse>> UpdateAsync(
@@ -189,7 +193,7 @@ public sealed class WorkAssignmentService(AttendanceDbContext dbContext)
 
         return new WorkAssignmentWriteResult<WorkAssignmentResponse>(
             WorkAssignmentWriteStatus.Success,
-            Map(workAssignment));
+            (await GetByIdAsync(workAssignment.Id, cancellationToken))!);
     }
 
     public async Task<WorkAssignmentWriteResult> CancelAsync(
@@ -298,24 +302,4 @@ public sealed class WorkAssignmentService(AttendanceDbContext dbContext)
                ActiveAssignmentPerEmployeeDateIndexName,
                StringComparison.Ordinal);
 
-    private static Expression<Func<EmployeeWorkAssignment, WorkAssignmentResponse>>
-        MapExpression()
-        => x => new WorkAssignmentResponse(
-            x.Id,
-            x.EmployeeId,
-            x.Date,
-            x.Type.ToString(),
-            x.Comment,
-            x.Status.ToString(),
-            x.Version);
-
-    private static WorkAssignmentResponse Map(EmployeeWorkAssignment workAssignment)
-        => new(
-            workAssignment.Id,
-            workAssignment.EmployeeId,
-            workAssignment.Date,
-            workAssignment.Type.ToString(),
-            workAssignment.Comment,
-            workAssignment.Status.ToString(),
-            workAssignment.Version);
 }

@@ -1,37 +1,33 @@
 <script setup lang="ts">
+import axios from 'axios'
+import Button from 'primevue/button'
+import Column from 'primevue/column'
+import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
+import Message from 'primevue/message'
+import { reactive, ref } from 'vue'
+import { z } from 'zod'
+import { useToast } from 'primevue/usetoast'
 import AppPageHeader from '@/components/app/AppPageHeader.vue'
 import AppEmptyState from '@/components/state/AppEmptyState.vue'
+import AppErrorState from '@/components/state/AppErrorState.vue'
+import AppLoadingState from '@/components/state/AppLoadingState.vue'
+import { listActiveEmployees, type EmployeeOption } from '@/modules/employees/employees.service'
+import { cancelWorkAssignment, createWorkAssignment, listWorkAssignments, updateWorkAssignment } from '@/modules/work-assignments/work-assignments.service'
+import { assignmentStatusLabels, assignmentTypeLabels } from '@/modules/work-assignments/work-assignments.presentation'
+import { workAssignmentTypes, type WorkAssignment, type WorkAssignmentType } from '@/modules/work-assignments/work-assignments.types'
+import { getUserFriendlyApiError } from '@/services/api-errors'
+const toast=useToast(),today=new Date(),from=new Date(today.getFullYear(),today.getMonth(),1).toISOString().slice(0,10),to=new Date(today.getFullYear(),today.getMonth()+1,0).toISOString().slice(0,10)
+const filters=reactive({from,to,status:''}),items=ref<WorkAssignment[]>([]),loading=ref(false),loaded=ref(false),error=ref<string|null>(null),employees=ref<EmployeeOption[]>([]),employeesLoading=ref(false),employeesError=ref<string|null>(null),visible=ref(false),saving=ref(false),selected=ref<WorkAssignment|null>(null),cancelTarget=ref<WorkAssignment|null>(null),conflict=ref<string|null>(null),formError=ref('')
+const form=reactive<{employeeId:string;date:string;type:WorkAssignmentType;comment:string}>({employeeId:'',date:from,type:'WeekendWork',comment:''})
+const schema=z.object({employeeId:z.string().uuid('Selecciona un empleado.'),date:z.string().min(1,'Selecciona una fecha.'),comment:z.string().max(500,'El comentario no puede superar 500 caracteres.')})
+const is409=(e:unknown)=>axios.isAxiosError(e)&&e.response?.status===409
+async function load(){loading.value=true;error.value=null;try{items.value=await listWorkAssignments({from:filters.from,to:filters.to,...(filters.status?{status:filters.status}:{})});loaded.value=true}catch(e){error.value=getUserFriendlyApiError(e)}finally{loading.value=false}}
+async function loadEmployees(){employeesLoading.value=true;employeesError.value=null;try{employees.value=await listActiveEmployees();if(!employees.value.length)employeesError.value='No hay empleados activos disponibles.'}catch{employeesError.value='No pudimos cargar los empleados.'}finally{employeesLoading.value=false}}
+function openCreate(){selected.value=null;Object.assign(form,{employeeId:'',date:filters.from,type:'WeekendWork',comment:''});formError.value='';visible.value=true;void loadEmployees()}
+function openEdit(x:WorkAssignment){selected.value=x;Object.assign(form,{employeeId:x.employeeId,date:x.date,type:x.type,comment:x.comment??''});formError.value='';visible.value=true}
+async function save(){const validation=schema.safeParse(form);if(!validation.success){formError.value=validation.error.issues[0]?.message??'';return}saving.value=true;try{const payload={date:form.date,type:form.type,comment:form.comment.trim()||null};if(selected.value)await updateWorkAssignment(selected.value.id,{...payload,version:selected.value.version});else await createWorkAssignment({...payload,employeeId:form.employeeId});visible.value=false;toast.add({severity:'success',summary:'Listo',detail:selected.value?'Cambios guardados.':'Asignación registrada correctamente.',life:3000});await load()}catch(e){if(is409(e)){const detail=axios.isAxiosError(e)?String(e.response?.data?.detail??''):'';formError.value=detail.includes('Holiday')?'No se puede registrar una asignación para un día feriado.':detail.includes('active work assignment')?'El empleado ya tiene una asignación activa para esa fecha.':'Esta asignación fue modificada por otra persona. Actualiza la información e inténtalo nuevamente.'}else formError.value=getUserFriendlyApiError(e)}finally{saving.value=false}}
+async function confirmCancel(){if(!cancelTarget.value)return;try{await cancelWorkAssignment(cancelTarget.value.id,cancelTarget.value.version);cancelTarget.value=null;toast.add({severity:'success',summary:'Listo',detail:'Asignación cancelada correctamente.',life:3000});await load()}catch(e){if(is409(e))conflict.value='Esta asignación fue modificada por otra persona. Actualiza la información e inténtalo nuevamente.'}}
+void load()
 </script>
-
-<template>
-  <section>
-    <AppPageHeader
-      title="Asignaciones"
-      description="Consulta asignaciones registradas por empleado."
-    />
-
-    <div class="app-grid app-grid--two">
-      <article class="app-surface">
-        <h2 class="app-surface__title">Información disponible</h2>
-        <ul class="app-feature-list">
-          <li>
-            <i class="pi pi-briefcase" aria-hidden="true"></i>
-            <span>Revisa asignaciones por fecha y empleado.</span>
-          </li>
-          <li>
-            <i class="pi pi-comment" aria-hidden="true"></i>
-            <span>Consulta observaciones registradas cuando existan.</span>
-          </li>
-        </ul>
-      </article>
-
-      <article class="app-surface">
-        <h2 class="app-surface__title">Sin información disponible</h2>
-        <AppEmptyState
-          title="Aún no hay información para mostrar."
-          description="Esta sección estará disponible próximamente."
-        />
-      </article>
-    </div>
-  </section>
-</template>
+<template><section><AppPageHeader title="Asignaciones" description="Gestiona excepciones de trabajo por empleado y fecha." action-label="Registrar asignación" action-icon="pi pi-plus" @action="openCreate"/><Message v-if="conflict" severity="warn">{{conflict}} <Button label="Actualizar" text @click="load"/></Message><form class="absence-filters app-surface" @submit.prevent="load"><label>Desde<input v-model="filters.from" type="date"/></label><label>Hasta<input v-model="filters.to" type="date"/></label><label>Estado<select v-model="filters.status"><option value="">Todos</option><option value="Active">Activa</option><option value="Cancelled">Cancelada</option></select></label><Button label="Consultar" type="submit"/></form><AppLoadingState v-if="loading" label="Cargando asignaciones..."/><AppErrorState v-else-if="error" title="No pudimos cargar las asignaciones." :description="error" @retry="load"/><AppEmptyState v-else-if="loaded&&!items.length" title="No hay asignaciones registradas para este período." description="Registra una asignación excepcional." action-label="Registrar asignación" @action="openCreate"/><div v-else class="absence-list work-assignments-list"><DataTable :value="items" class="absence-table"><Column header="Empleado"><template #body="{data}"><strong>{{data.employee.fullName}}</strong><small>{{data.employee.employeeCode}}</small></template></Column><Column header="Fecha"><template #body="{data}">{{data.date}}</template></Column><Column header="Tipo"><template #body="{data}">{{assignmentTypeLabels[data.type]}}</template></Column><Column header="Comentario"><template #body="{data}">{{data.comment??'Sin comentario'}}</template></Column><Column header="Estado"><template #body="{data}">{{assignmentStatusLabels[data.status]}}</template></Column><Column header="Acciones"><template #body="{data}"><template v-if="data.status==='Active'"><Button label="Editar" text @click="openEdit(data)"/><Button label="Cancelar asignación" text severity="secondary" @click="cancelTarget=data"/></template></template></Column></DataTable><div class="absence-cards"><article v-for="x in items" :key="x.id" class="app-surface absence-card"><strong>{{x.employee.fullName}}</strong><small>{{x.employee.employeeCode}}</small><span>{{x.date}}</span><span>{{assignmentTypeLabels[x.type]}}</span><span>{{assignmentStatusLabels[x.status]}}</span><p>{{x.comment??'Sin comentario'}}</p><div v-if="x.status==='Active'"><Button label="Editar" text @click="openEdit(x)"/><Button label="Cancelar asignación" text @click="cancelTarget=x"/></div></article></div></div><Dialog :visible="visible" modal :header="selected?'Editar asignación':'Registrar asignación'" :style="{width:'min(100%, 38rem)'}" @update:visible="visible=false"><form class="absence-form" @submit.prevent="save"><label>Empleado<select v-model="form.employeeId" :disabled="Boolean(selected)||employeesLoading"><option value="">{{employeesLoading?'Cargando empleados...':'Selecciona un empleado'}}</option><option v-for="e in employees" :key="e.id" :value="e.id">{{e.fullName}} — {{e.employeeCode}}</option></select></label><Message v-if="employeesError" severity="warn">{{employeesError}} <Button v-if="employeesError==='No pudimos cargar los empleados.'" label="Volver a intentar" text @click="loadEmployees"/></Message><label>Fecha<input v-model="form.date" type="date"/></label><label>Tipo de asignación<select v-model="form.type"><option v-for="x in workAssignmentTypes" :key="x" :value="x">{{assignmentTypeLabels[x]}}</option></select></label><label>Comentario<textarea v-model="form.comment" maxlength="500"/></label><Message v-if="formError" severity="error">{{formError}}</Message><Button label="Cancelar" text type="button" @click="visible=false"/><Button :label="selected?'Guardar cambios':'Registrar asignación'" type="submit" :loading="saving" :disabled="saving||Boolean(employeesError)"/></form></Dialog><Dialog :visible="Boolean(cancelTarget)" modal header="Cancelar asignación" @update:visible="cancelTarget=null"><p>La asignación quedará registrada en el historial como cancelada.</p><template #footer><Button label="Volver" text @click="cancelTarget=null"/><Button label="Cancelar asignación" @click="confirmCancel"/></template></Dialog></section></template>
