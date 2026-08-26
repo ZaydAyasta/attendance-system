@@ -7,6 +7,10 @@ public static class EmployeeEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapEmployeeEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/employees/manage", async (EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.ListDetailsAsync(ct)));
+        endpoints.MapPost("/api/employees", async (CreateEmployeeRequest r,EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.CreateAsync(r,ct)));
+        endpoints.MapPut("/api/employees/{id:guid}", async (Guid id,UpdateEmployeeRequest r,EmployeeDirectoryService s,CancellationToken ct)=>{var x=await s.UpdateAsync(id,r,ct);return x is null?TypedResults.NotFound():TypedResults.Ok(x);});
+        endpoints.MapPut("/api/employees/{id:guid}/status", async (Guid id,SetEmployeeStatusRequest r,EmployeeDirectoryService s,CancellationToken ct)=>{var x=await s.SetStatusAsync(id,r,ct);return x is null?TypedResults.NotFound():TypedResults.Ok(x);});
         endpoints.MapGet("/api/employees", ListAsync)
             .WithTags("Employees")
             .WithName("ListEmployees")

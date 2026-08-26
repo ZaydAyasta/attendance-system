@@ -47,5 +47,7 @@ public sealed class EmployeeConfiguration
 
         builder.Property(x => x.TerminationDate)
             .HasColumnName("termination_date");
+
+        builder.Property(x => x.Version).IsRowVersion();
     }
 }

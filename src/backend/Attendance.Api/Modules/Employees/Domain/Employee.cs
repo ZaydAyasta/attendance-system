@@ -40,4 +40,15 @@ public sealed class Employee
     /// if the employee has not been terminated.
     /// </summary>
     public DateOnly? TerminationDate { get; private set; }
+
+    public uint Version { get; private set; }
+
+    public static Employee Create(string code, string firstName, string lastName, DateOnly hireDate)
+        => new() { Id = Guid.NewGuid(), EmployeeCode = code.Trim(), FirstName = firstName.Trim(), LastName = lastName.Trim(), HireDate = hireDate, IsActive = true };
+
+    public void Update(string code, string firstName, string lastName, DateOnly hireDate)
+    { EmployeeCode = code.Trim(); FirstName = firstName.Trim(); LastName = lastName.Trim(); HireDate = hireDate; }
+
+    public void SetActive(bool isActive, DateOnly? terminationDate)
+    { IsActive = isActive; TerminationDate = isActive ? null : terminationDate; }
 }
