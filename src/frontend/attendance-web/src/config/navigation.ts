@@ -11,6 +11,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { label: 'Resumen', description: 'Vista general y accesos rápidos.', icon: 'pi pi-home', route: '/', allowedRoles: ['Admin'] },
   { label: 'Asistencia', description: 'Consulta marcaciones y estados diarios.', icon: 'pi pi-clock', route: '/attendance', allowedRoles: ['Admin', 'User'] },
+  { label: 'Marcar asistencia', description: 'Registra una marcación desde un checkpoint.', icon: 'pi pi-qrcode', route: '/mark', allowedRoles: ['User'] },
   { label: 'Ausencias', description: 'Registra y consulta ausencias autorizadas.', icon: 'pi pi-calendar-minus', route: '/absences', allowedRoles: ['Admin', 'User'] },
   { label: 'Calendario laboral', description: 'Administra días laborables, no laborables y feriados.', icon: 'pi pi-calendar', route: '/work-calendar', allowedRoles: ['Admin'] },
   { label: 'Asignaciones', description: 'Gestiona asignaciones excepcionales por empleado.', icon: 'pi pi-briefcase', route: '/work-assignments', allowedRoles: ['Admin'] },

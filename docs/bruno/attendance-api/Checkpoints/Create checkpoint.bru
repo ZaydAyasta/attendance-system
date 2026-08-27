@@ -1,0 +1,4 @@
+meta { name: Create checkpoint type: http seq: 2 }
+post { url: {{baseUrl}}/api/checkpoints body: json }
+headers { X-CSRF-TOKEN: {{csrfToken}} }
+body:json { { "code": "ENTRY-MAIN", "name": "Entrada principal", "type": "EntryExit" } }

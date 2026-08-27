@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.Attendance.Domain;
 using Attendance.Api.Modules.Employees.Domain;
+using Attendance.Api.Modules.Checkpoints.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -46,6 +47,11 @@ public sealed class AttendanceMarkConfiguration
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(x => x.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Checkpoint>()
+            .WithMany()
+            .HasForeignKey(x => x.CheckpointId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => new

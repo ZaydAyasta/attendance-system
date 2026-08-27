@@ -960,3 +960,15 @@ img {
 
   .work-calendar-bulk__weekdays { grid-template-columns: 1fr; }
 }
+
+.checkpoint-qr { display:flex; justify-content:center; padding:1rem; background:#fff; border-radius:12px; }
+.mark-view { display:grid; gap:1rem; max-width:720px; }
+.mark-camera { display:grid; gap:1rem; justify-items:start; }
+.mark-camera video { width:100%; max-height:360px; background:#161b22; border-radius:12px; }
+.mark-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.mark-actions .p-button { justify-content:center; min-height:3rem; }
+.mark-history { list-style:none; padding:0; margin:0; display:grid; gap:.6rem; }
+.mark-history li { display:grid; grid-template-columns:1fr auto; gap:.2rem .75rem; padding:.65rem 0; border-bottom:1px solid var(--p-content-border-color); }
+.mark-history small { grid-column:1/-1; color:var(--p-text-muted-color); }
+.mark-error { color:var(--p-red-600); }
+@media (max-width: 480px) { .mark-actions { grid-template-columns:1fr; } }

@@ -13,6 +13,8 @@ using Attendance.Api.Modules.WorkAssignments.Endpoints;
 using Attendance.Api.Modules.Identity.Application;
 using Attendance.Api.Modules.Identity.Domain;
 using Attendance.Api.Modules.Identity.Endpoints;
+using Attendance.Api.Modules.Checkpoints.Application;
+using Attendance.Api.Modules.Checkpoints.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +77,7 @@ builder.Services.AddEmployeesModule();
 builder.Services.AddAttendanceModule(builder.Configuration);
 builder.Services.AddWorkCalendarModule();
 builder.Services.AddWorkAssignmentsModule();
+builder.Services.AddCheckpointsModule();
 
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -156,6 +159,7 @@ app.MapEmployeeEndpoints();
 app.MapAttendanceEndpoints();
 app.MapWorkCalendarEndpoints();
 app.MapWorkAssignmentEndpoints();
+app.MapCheckpointEndpoints();
 
 app.Run();
 

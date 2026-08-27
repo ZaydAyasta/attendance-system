@@ -1,0 +1,4 @@
+meta { name: Resolve QR type: http seq: 1 }
+post { url: {{baseUrl}}/api/attendance/capture/resolve body: json }
+headers { X-CSRF-TOKEN: {{csrfToken}} }
+body:json { { "qrToken": "{{qrToken}}" } }

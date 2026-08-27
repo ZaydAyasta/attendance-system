@@ -4,6 +4,7 @@ using Attendance.Api.Modules.Employees.Domain;
 using Attendance.Api.Modules.WorkCalendar.Domain;
 using Attendance.Api.Modules.WorkAssignments.Domain;
 using Attendance.Api.Modules.Identity.Domain;
+using Attendance.Api.Modules.Checkpoints.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,8 @@ public sealed class AttendanceDbContext(
 
     public DbSet<EmployeeWorkAssignment> EmployeeWorkAssignments =>
         Set<EmployeeWorkAssignment>();
+
+    public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

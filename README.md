@@ -128,6 +128,19 @@ Las operaciones mutantes requieren antiforgery. La SPA obtiene el token en
 `GET /api/auth/csrf` y lo envía mediante el header `X-CSRF-TOKEN`; Bruno incluye
 requests equivalentes en las carpetas Auth y My Data.
 
+## Attendance Capture
+
+La captura operativa usa checkpoints físicos y QR dinámicos. IT administra puntos
+`EntryExit` y `Cafeteria`; cada QR está firmado, expira en 30 segundos por defecto
+(`CheckpointQr:TokenLifetimeSeconds`) y sólo identifica el checkpoint, nunca al
+empleado. Un User autenticado escanea el QR y la API resuelve sus acciones válidas
+con su asociación Employee/Identity y la zona `America/Lima`.
+
+Las marcas creadas por este flujo registran `Source=DynamicQr` y el `CheckpointId`.
+La protección anti-replay es en memoria por token y empleado, apropiada para la
+instancia única de intranet prevista. Al reiniciar el servidor se invalidan los QR
+activos; una instalación con varias instancias requerirá almacenamiento compartido.
+
 ## Base de datos y migrations
 
 Aplicar migrations:

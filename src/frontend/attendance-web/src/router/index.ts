@@ -7,6 +7,7 @@ import CheckpointsView from '@/views/CheckpointsView.vue'
 import EmployeesView from '@/views/EmployeesView.vue'
 import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
+import MarkView from '@/views/MarkView.vue'
 import ReportsView from '@/views/ReportsView.vue'
 import SystemView from '@/views/SystemView.vue'
 import WorkAssignmentsView from '@/views/WorkAssignmentsView.vue'
@@ -23,6 +24,7 @@ const router = createRouter({
       { path: 'access-denied', name: 'access-denied', component: AccessDeniedView, meta: { title: 'Acceso denegado' } },
       { path: '', name: 'home', component: HomeView, meta: { title: 'Resumen', allowedRoles: ['Admin'] } },
       { path: 'attendance', name: 'attendance', component: AttendanceView, meta: { title: 'Asistencia', allowedRoles: ['Admin', 'User'] } },
+      { path: 'mark', name: 'mark', component: MarkView, meta: { title: 'Marcar asistencia', allowedRoles: ['User'] } },
       { path: 'absences', name: 'absences', component: AbsencesView, meta: { title: 'Ausencias', allowedRoles: ['Admin', 'User'] } },
       { path: 'work-calendar', name: 'work-calendar', component: WorkCalendarView, meta: { title: 'Calendario laboral', allowedRoles: ['Admin'] } },
       { path: 'work-assignments', name: 'work-assignments', component: WorkAssignmentsView, meta: { title: 'Asignaciones', allowedRoles: ['Admin'] } },
