@@ -2,13 +2,15 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AppPageHeader from '@/components/app/AppPageHeader.vue'
-import { useAppShellStore } from '@/stores/app-shell'
+import { filterNavigationItems } from '@/config/navigation'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const appShellStore = useAppShellStore()
+const authStore = useAuthStore()
+const visibleNavigationItems = computed(() => authStore.role ? filterNavigationItems(authStore.role) : [])
 
 const quickLinks = computed(() =>
-  appShellStore.visibleNavigationItems.filter((item) => item.route !== '/').slice(0, 6),
+  visibleNavigationItems.value.filter((item) => item.route !== '/').slice(0, 6),
 )
 
 const taskDescriptionsByRoute: Record<string, string> = {
@@ -23,7 +25,7 @@ const taskDescriptionsByRoute: Record<string, string> = {
 }
 
 const frequentTasks = computed(() => {
-  const visibleItems = appShellStore.visibleNavigationItems.filter((item) => item.route !== '/')
+  const visibleItems = visibleNavigationItems.value.filter((item) => item.route !== '/')
   const technicalItems = visibleItems.filter(
     (item) => item.route === '/system' || item.route === '/checkpoints',
   )

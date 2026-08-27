@@ -97,6 +97,37 @@ URL local esperada:
 
 En desarrollo, Vite proxya `"/api"` hacia `http://localhost:5015`.
 
+## Identity y autorización
+
+La API usa ASP.NET Core Identity con cookies HttpOnly; no usa JWT ni guarda tokens
+de sesión en `localStorage`. Los roles internos son `Admin`, `User` e `IT`.
+`User` debe estar asociado explícitamente a un empleado; `Admin` e `IT` pueden no
+tener asociación laboral. Las rutas personales resuelven el empleado desde la
+sesión, nunca desde un `EmployeeId` enviado por el navegador.
+
+En Development, configura cuentas de prueba con User Secrets. Las contraseñas no
+deben ir en archivos trackeados:
+
+```bash
+dotnet user-secrets set "Identity:SeedUsers:Admin:Username" "<admin>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:Admin:Password" "<strong-password>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:User:Username" "<user>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:User:Password" "<strong-password>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:User:EmployeeId" "<existing-employee-guid>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:IT:Username" "<it>" --project src/backend/Attendance.Api
+dotnet user-secrets set "Identity:SeedUsers:IT:Password" "<strong-password>" --project src/backend/Attendance.Api
+```
+
+Al iniciar la API en Development se crean únicamente las cuentas configuradas que
+no existan. En producción usa secretos externos, HTTPS obligatorio, cookies Secure,
+una base Identity propia con mínimo privilegio y no expongas Scalar fuera de Development.
+Las políticas backend son la fuente de autorización: Admin gestiona módulos de negocio,
+User sólo consume `/api/me/attendance` y `/api/me/absences`, e IT sólo accede a áreas técnicas.
+
+Las operaciones mutantes requieren antiforgery. La SPA obtiene el token en
+`GET /api/auth/csrf` y lo envía mediante el header `X-CSRF-TOKEN`; Bruno incluye
+requests equivalentes en las carpetas Auth y My Data.
+
 ## Base de datos y migrations
 
 Aplicar migrations:

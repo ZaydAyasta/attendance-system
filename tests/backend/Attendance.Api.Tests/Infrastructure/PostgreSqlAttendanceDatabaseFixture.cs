@@ -13,6 +13,9 @@ public sealed class PostgreSqlAttendanceDatabaseFixture : IAsyncLifetime
 
     public bool IsAvailable => SkipReason is null;
 
+    public string ConnectionString => container?.GetConnectionString()
+        ?? throw new InvalidOperationException("PostgreSQL container is not available.");
+
     public async Task InitializeAsync()
     {
         if (!HasContainerRuntime())

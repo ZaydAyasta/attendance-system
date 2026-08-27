@@ -3,7 +3,7 @@ import { filterNavigationItems } from './navigation'
 
 describe('filterNavigationItems', () => {
   it('shows the expected sections for admin', () => {
-    const routes = filterNavigationItems('admin').map((item) => item.route)
+    const routes = filterNavigationItems('Admin').map((item) => item.route)
 
     expect(routes).toContain('/work-calendar')
     expect(routes).toContain('/reports')
@@ -11,7 +11,7 @@ describe('filterNavigationItems', () => {
   })
 
   it('hides admin-only sections for user view', () => {
-    const routes = filterNavigationItems('user').map((item) => item.route)
+    const routes = filterNavigationItems('User').map((item) => item.route)
 
     expect(routes).toContain('/attendance')
     expect(routes).toContain('/absences')
@@ -20,7 +20,7 @@ describe('filterNavigationItems', () => {
   })
 
   it('shows technical sections for it view', () => {
-    const routes = filterNavigationItems('it').map((item) => item.route)
+    const routes = filterNavigationItems('IT').map((item) => item.route)
 
     expect(routes).toContain('/system')
     expect(routes).toContain('/checkpoints')

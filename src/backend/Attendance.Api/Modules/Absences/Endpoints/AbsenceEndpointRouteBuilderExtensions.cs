@@ -11,11 +11,14 @@ public static class AbsenceEndpointRouteBuilderExtensions
     {
         var absencesGroup = endpoints
             .MapGroup("/api/absences")
-            .WithTags("Absences");
+            .WithTags("Absences")
+            .RequireAuthorization("AdminOnly")
+            .WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
 
         var employeesGroup = endpoints
             .MapGroup("/api/employees")
-            .WithTags("Absences");
+            .WithTags("Absences")
+            .RequireAuthorization("AdminOnly");
 
         absencesGroup.MapGet(string.Empty, ListAsync)
             .WithName("ListAbsences")

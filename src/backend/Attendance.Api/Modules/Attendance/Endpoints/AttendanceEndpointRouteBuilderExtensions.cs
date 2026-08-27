@@ -10,7 +10,8 @@ public static class AttendanceEndpointRouteBuilderExtensions
     {
         var employeesGroup = endpoints
             .MapGroup("/api/employees")
-            .WithTags("Attendance");
+            .WithTags("Attendance")
+            .RequireAuthorization("AdminOnly");
 
         employeesGroup.MapGet(
             "/{employeeId:guid}/attendance/{date}",

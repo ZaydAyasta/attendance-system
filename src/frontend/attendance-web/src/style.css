@@ -210,6 +210,15 @@ img {
   margin-top: 1rem;
 }
 
+.app-shell__session { display: flex; align-items: center; gap: .75rem; min-width: 0; color: var(--app-muted); }
+.app-shell__session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell__drawer-logout { margin-top: 1rem; }
+.login-page { display: grid; min-height: 100vh; place-items: center; padding: 1rem; }
+.login-card { width: min(100%, 28rem); }
+.login-card h1 { margin: 0; color: var(--app-heading); }
+.login-card__eyebrow { margin: 0 0 .35rem; color: var(--app-brand); font-weight: 700; }
+.login-card__error { margin: 0; color: #b42318; }
+
 .app-shell__role-select:focus-visible,
 .app-nav__link:focus-visible,
 .app-card-link:focus-visible {

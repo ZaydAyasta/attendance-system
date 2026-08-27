@@ -10,6 +10,11 @@ using Attendance.Api.Modules.WorkCalendar.Application;
 using Attendance.Api.Modules.WorkCalendar.Endpoints;
 using Attendance.Api.Modules.WorkAssignments.Application;
 using Attendance.Api.Modules.WorkAssignments.Endpoints;
+using Attendance.Api.Modules.Identity.Application;
+using Attendance.Api.Modules.Identity.Domain;
+using Attendance.Api.Modules.Identity.Endpoints;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -23,6 +28,48 @@ var connectionString =
 
 builder.Services.AddDbContext<AttendanceDbContext>(options =>
     options.UseNpgsql(connectionString));
+builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
+{
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+})
+    .AddEntityFrameworkStores<AttendanceDbContext>()
+    .AddDefaultTokenProviders();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "attendance.auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(IdentityRoles.Admin));
+    options.AddPolicy("EmployeeSelfService", policy => policy.RequireRole(IdentityRoles.User));
+    options.AddPolicy("ITOnly", policy => policy.RequireRole(IdentityRoles.IT));
+});
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddScoped<IdentitySessionService>();
+builder.Services.AddScoped<IdentityUserAdministrationService>();
 builder.Services.AddAbsencesModule();
 builder.Services.AddEmployeesModule();
 builder.Services.AddAttendanceModule(builder.Configuration);
@@ -42,6 +89,11 @@ builder.Services.AddOpenApi("v1", options =>
 });
 
 var app = builder.Build();
+
+await using (var identityScope = app.Services.CreateAsyncScope())
+{
+    await EnsureIdentityRolesAsync(identityScope.ServiceProvider);
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -74,6 +126,8 @@ if (app.Environment.IsDevelopment())
     }
 
     await dbContext.SaveChangesAsync();
+
+    await SeedIdentityAsync(scope.ServiceProvider, builder.Configuration);
 }
 
 // Configure the HTTP request pipeline.
@@ -92,6 +146,11 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
+
+app.MapIdentityEndpoints();
 app.MapAbsenceEndpoints();
 app.MapEmployeeEndpoints();
 app.MapAttendanceEndpoints();
@@ -99,5 +158,39 @@ app.MapWorkCalendarEndpoints();
 app.MapWorkAssignmentEndpoints();
 
 app.Run();
+
+static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
+{
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    foreach (var role in IdentityRoles.All)
+    {
+        var username = configuration[$"Identity:SeedUsers:{role}:Username"];
+        var password = configuration[$"Identity:SeedUsers:{role}:Password"];
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || await userManager.FindByNameAsync(username) is not null)
+        {
+            continue;
+        }
+        Guid? employeeId = null;
+        var configuredEmployeeId = configuration[$"Identity:SeedUsers:{role}:EmployeeId"];
+        if (Guid.TryParse(configuredEmployeeId, out var parsedEmployeeId)) employeeId = parsedEmployeeId;
+        if (role == IdentityRoles.User && employeeId is null) continue;
+        var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = username, EmployeeId = employeeId, LockoutEnabled = true };
+        var result = await userManager.CreateAsync(user, password);
+        if (result.Succeeded) await userManager.AddToRoleAsync(user, role);
+    }
+}
+
+static async Task EnsureIdentityRolesAsync(IServiceProvider services)
+{
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    foreach (var role in IdentityRoles.All)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+        }
+    }
+
+}
 
 public partial class Program;

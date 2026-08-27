@@ -11,7 +11,9 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
     {
         var group = endpoints
             .MapGroup("/api/work-calendar")
-            .WithTags("Work Calendar");
+            .WithTags("Work Calendar")
+            .RequireAuthorization("AdminOnly")
+            .WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
 
         group.MapGet(string.Empty, ListAsync)
             .WithName("ListWorkCalendarDays")

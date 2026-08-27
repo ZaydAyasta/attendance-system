@@ -1,0 +1,10 @@
+meta {
+  name: My attendance
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/me/attendance?from={{fromDate}}&to={{toDate}}
+  body: none
+}

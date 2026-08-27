@@ -40,6 +40,14 @@ export function getUserFriendlyApiError(error: unknown): string {
     )
   }
 
+  if (error.response.status === 401) {
+    return 'Tu sesión ha finalizado. Inicia sesión nuevamente.'
+  }
+
+  if (error.response.status === 403) {
+    return 'No tienes acceso a esta sección.'
+  }
+
   if (error.response.status === 404) {
     return 'No encontramos la información solicitada.'
   }

@@ -701,7 +701,8 @@ public sealed class AbsenceServiceTests
                 last_name TEXT NOT NULL,
                 is_active INTEGER NOT NULL,
                 hire_date TEXT NOT NULL,
-                termination_date TEXT NULL
+                termination_date TEXT NULL,
+                Version INTEGER NOT NULL DEFAULT 1
             );
             """);
 

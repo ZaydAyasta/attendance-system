@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useAppShellStore } from '@/stores/app-shell'
+import { useAuthStore } from '@/stores/auth'
 import HomeView from './HomeView.vue'
 
 function createTestRouter() {
@@ -42,8 +42,8 @@ describe('HomeView', () => {
   })
 
   it('shows only user tasks for the user role', async () => {
-    const store = useAppShellStore()
-    store.setCurrentRole('user')
+    const store = useAuthStore()
+    store.user = { id: '1', username: 'user', role: 'User', employeeId: '1', employee: null }
 
     const wrapper = await mountHomeView()
     const text = wrapper.text()
@@ -57,8 +57,8 @@ describe('HomeView', () => {
   })
 
   it('shows administrative tasks for the admin role', async () => {
-    const store = useAppShellStore()
-    store.setCurrentRole('admin')
+    const store = useAuthStore()
+    store.user = { id: '1', username: 'admin', role: 'Admin', employeeId: null, employee: null }
 
     const wrapper = await mountHomeView()
     const text = wrapper.text()
@@ -70,8 +70,8 @@ describe('HomeView', () => {
   })
 
   it('shows only technical tasks for the it role', async () => {
-    const store = useAppShellStore()
-    store.setCurrentRole('it')
+    const store = useAuthStore()
+    store.user = { id: '1', username: 'it', role: 'IT', employeeId: null, employee: null }
 
     const wrapper = await mountHomeView()
     const text = wrapper.text()

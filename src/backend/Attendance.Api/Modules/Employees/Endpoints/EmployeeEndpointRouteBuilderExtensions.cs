@@ -7,16 +7,17 @@ public static class EmployeeEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapEmployeeEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/employees/manage", async (EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.ListDetailsAsync(ct)));
-        endpoints.MapPost("/api/employees", async (CreateEmployeeRequest r,EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.CreateAsync(r,ct)));
-        endpoints.MapPut("/api/employees/{id:guid}", UpdateAsync);
-        endpoints.MapPut("/api/employees/{id:guid}/status", SetStatusAsync);
+        endpoints.MapGet("/api/employees/manage", async (EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.ListDetailsAsync(ct))).RequireAuthorization("AdminOnly");
+        endpoints.MapPost("/api/employees", async (CreateEmployeeRequest r,EmployeeDirectoryService s,CancellationToken ct)=>TypedResults.Ok(await s.CreateAsync(r,ct))).RequireAuthorization("AdminOnly").WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
+        endpoints.MapPut("/api/employees/{id:guid}", UpdateAsync).RequireAuthorization("AdminOnly").WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
+        endpoints.MapPut("/api/employees/{id:guid}/status", SetStatusAsync).RequireAuthorization("AdminOnly").WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
         endpoints.MapGet("/api/employees", ListAsync)
             .WithTags("Employees")
             .WithName("ListEmployees")
             .WithSummary("List employees")
             .WithDescription("Returns employees for read-only selection, optionally filtered by active status.")
-            .Produces<IReadOnlyCollection<EmployeeOptionResponse>>(StatusCodes.Status200OK);
+            .Produces<IReadOnlyCollection<EmployeeOptionResponse>>(StatusCodes.Status200OK)
+            .RequireAuthorization("AdminOnly");
         return endpoints;
     }
 

@@ -2,180 +2,39 @@ import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '@/stores/auth'
 import AppLayout from './AppLayout.vue'
 
-const PlaceholderView = {
-  template: '<div>Vista de prueba</div>',
-}
-
+const PlaceholderView = { template: '<div>Vista de prueba</div>' }
 function createTestRouter() {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [
-      {
-        path: '/',
-        component: AppLayout,
-        children: [
-          {
-            path: '',
-            component: PlaceholderView,
-            meta: {
-              title: 'Resumen',
-            },
-          },
-          {
-            path: 'attendance',
-            component: PlaceholderView,
-          },
-          {
-            path: 'absences',
-            component: PlaceholderView,
-          },
-          {
-            path: 'work-calendar',
-            component: PlaceholderView,
-          },
-          {
-            path: 'work-assignments',
-            component: PlaceholderView,
-          },
-          {
-            path: 'employees',
-            component: PlaceholderView,
-          },
-          {
-            path: 'reports',
-            component: PlaceholderView,
-          },
-          {
-            path: 'system',
-            component: PlaceholderView,
-          },
-          {
-            path: 'checkpoints',
-            component: PlaceholderView,
-          },
-        ],
-      },
-    ],
+    routes: [{ path: '/', component: AppLayout, children: [{ path: '', component: PlaceholderView, meta: { title: 'Resumen' } }] }],
   })
 }
+function setMatchMedia(matches: boolean) { const listeners = new Set<(event: MediaQueryListEvent) => void>(); Object.defineProperty(window, 'matchMedia', { writable: true, value: vi.fn().mockImplementation(() => ({ matches, media: '(max-width: 960px)', addEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener), removeEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener) })) }); return { emit: (next: boolean) => listeners.forEach((listener) => listener({ matches: next } as MediaQueryListEvent)) } }
+async function mountLayout(role: 'Admin' | 'User' | 'IT') { const router = createTestRouter(); const pinia = createPinia(); useAuthStore(pinia).user = { id: '1', username: 'tester', role, employeeId: null, employee: null }; await router.push('/'); await router.isReady(); return mount(AppLayout, { attachTo: document.body, global: { plugins: [pinia, router], stubs: { Button: { props: ['icon', 'label', 'severity'], emits: ['click'], template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\')">{{ label }}</button>' }, Drawer: { props: ['visible'], template: '<div v-if="visible"><slot /></div>' } } } }) }
 
 describe('AppLayout', () => {
-  function setMatchMedia(matches: boolean) {
-    const listeners = new Set<(event: MediaQueryListEvent) => void>()
+  beforeEach(() => setMatchMedia(false))
+  afterEach(() => { document.body.innerHTML = '' })
 
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: vi.fn().mockImplementation(() => ({
-        matches,
-        media: '(max-width: 960px)',
-        addEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => {
-          listeners.add(listener)
-        },
-        removeEventListener: (_event: string, listener: (event: MediaQueryListEvent) => void) => {
-          listeners.delete(listener)
-        },
-      })),
-    })
-
-    return {
-      emit(nextMatches: boolean) {
-        for (const listener of listeners) {
-          listener({ matches: nextMatches } as MediaQueryListEvent)
-        }
-      },
-    }
-  }
-
-  beforeEach(() => {
-    setMatchMedia(false)
-  })
-
-  afterEach(() => {
-    document.body.innerHTML = ''
-  })
-
-  it('keeps the menu button hidden on desktop and updates navigation immediately when the role changes', async () => {
-    const router = createTestRouter()
-    const pinia = createPinia()
-
-    await router.push('/')
-    await router.isReady()
-
-    const wrapper = mount(AppLayout, {
-      attachTo: document.body,
-      global: {
-        plugins: [pinia, router],
-        stubs: {
-          Button: {
-            props: ['icon', 'label', 'severity'],
-            emits: ['click'],
-            template:
-              '<button type="button" v-bind="$attrs" @click="$emit(\'click\')">{{ label }}</button>',
-          },
-          Drawer: {
-            props: ['visible', 'header', 'position'],
-            template: '<div v-if="visible" class="drawer-stub"><slot /></div>',
-          },
-        },
-      },
-    })
-
-    const sidebarText = () => wrapper.find('[data-testid="sidebar-navigation"]').text()
-
+  it('derives desktop navigation from the authenticated role without a role selector', async () => {
+    const wrapper = await mountLayout('Admin')
     expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="role-select-desktop"]').text()).toContain('Administrador')
-    expect(wrapper.get('[data-testid="role-select-desktop"]').text()).toContain('Usuario')
-    expect(wrapper.get('[data-testid="role-select-desktop"]').text()).toContain('TI')
-
-    expect(sidebarText()).toContain('Calendario laboral')
-    expect(sidebarText()).not.toContain('Sistema')
-
-    await wrapper.get('[data-testid="role-select-desktop"]').setValue('it')
-
-    expect(sidebarText()).toContain('Sistema')
-    expect(sidebarText()).toContain('Checkpoints')
-    expect(sidebarText()).not.toContain('Calendario laboral')
-    expect(sidebarText()).not.toContain('Asignaciones')
+    expect(wrapper.find('[data-testid="role-select-desktop"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="sidebar-navigation"]').text()).toContain('Calendario laboral')
   })
 
-  it('shows the menu button only when compact navigation is active', async () => {
+  it('shows the mobile menu only at the compact breakpoint', async () => {
     const media = setMatchMedia(true)
-    const router = createTestRouter()
-    const pinia = createPinia()
-
-    await router.push('/')
-    await router.isReady()
-
-    const wrapper = mount(AppLayout, {
-      attachTo: document.body,
-      global: {
-        plugins: [pinia, router],
-        stubs: {
-          Button: {
-            props: ['icon', 'label', 'severity'],
-            emits: ['click'],
-            template:
-              '<button type="button" v-bind="$attrs" @click="$emit(\'click\')">{{ label }}</button>',
-          },
-          Drawer: {
-            props: ['visible', 'header', 'position'],
-            template: '<div v-if="visible" class="drawer-stub"><slot /></div>',
-          },
-        },
-      },
-    })
-
+    const wrapper = await mountLayout('IT')
     await wrapper.vm.$nextTick()
-
     expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="role-select-desktop"]').exists()).toBe(false)
-
+    expect(wrapper.get('[data-testid="sidebar-navigation"]').text()).toContain('Sistema')
+    expect(wrapper.get('[data-testid="sidebar-navigation"]').text()).not.toContain('Empleados')
     media.emit(false)
     await wrapper.vm.$nextTick()
-
     expect(wrapper.find('[data-testid="menu-button"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="role-select-desktop"]').exists()).toBe(true)
   })
 })

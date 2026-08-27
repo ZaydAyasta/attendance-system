@@ -11,11 +11,14 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
     {
         var assignmentsGroup = endpoints
             .MapGroup("/api/work-assignments")
-            .WithTags("Work Assignments");
+            .WithTags("Work Assignments")
+            .RequireAuthorization("AdminOnly")
+            .WithMetadata(new Microsoft.AspNetCore.Antiforgery.RequireAntiforgeryTokenAttribute(true));
 
         var employeesGroup = endpoints
             .MapGroup("/api/employees")
-            .WithTags("Work Assignments");
+            .WithTags("Work Assignments")
+            .RequireAuthorization("AdminOnly");
 
         assignmentsGroup.MapGet(string.Empty, ListAsync)
             .WithName("ListWorkAssignments")

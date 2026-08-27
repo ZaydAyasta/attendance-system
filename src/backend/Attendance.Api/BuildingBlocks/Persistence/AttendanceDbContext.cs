@@ -3,6 +3,9 @@ using Attendance.Api.Modules.Attendance.Domain;
 using Attendance.Api.Modules.Employees.Domain;
 using Attendance.Api.Modules.WorkCalendar.Domain;
 using Attendance.Api.Modules.WorkAssignments.Domain;
+using Attendance.Api.Modules.Identity.Domain;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.BuildingBlocks.Persistence;
@@ -13,7 +16,7 @@ namespace Attendance.Api.BuildingBlocks.Persistence;
 /// </summary>
 public sealed class AttendanceDbContext(
     DbContextOptions<AttendanceDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Employee> Employees => Set<Employee>();
 
@@ -31,6 +34,7 @@ public sealed class AttendanceDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(AttendanceDbContext).Assembly);
     }
