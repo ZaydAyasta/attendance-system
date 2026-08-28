@@ -143,6 +143,11 @@ activos; una instalación con varias instancias requerirá almacenamiento compar
 
 ## Base de datos y migrations
 
+## Reporting
+
+Los reportes de asistencia son `AdminOnly`: filtran por período y empleado, muestran
+la evaluación diaria y permiten exportar el resultado completo a Excel y PDF.
+
 Aplicar migrations:
 
 ```bash

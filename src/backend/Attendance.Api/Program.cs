@@ -15,13 +15,23 @@ using Attendance.Api.Modules.Identity.Domain;
 using Attendance.Api.Modules.Identity.Endpoints;
 using Attendance.Api.Modules.Checkpoints.Application;
 using Attendance.Api.Modules.Checkpoints.Endpoints;
+using Attendance.Api.Modules.Reporting.Application;
+using Attendance.Api.Modules.Reporting.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using PdfSharp.Fonts;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// PDFsharp Core 6.2 does not resolve platform fonts unless this is enabled
+// before the first XFont is created. The application is deployed on Windows.
+if (OperatingSystem.IsWindows())
+{
+    GlobalFontSettings.UseWindowsFontsUnderWindows = true;
+}
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
@@ -78,6 +88,7 @@ builder.Services.AddAttendanceModule(builder.Configuration);
 builder.Services.AddWorkCalendarModule();
 builder.Services.AddWorkAssignmentsModule();
 builder.Services.AddCheckpointsModule();
+builder.Services.AddScoped<AttendanceReportService>();
 
 builder.Services.AddOpenApi("v1", options =>
 {
@@ -160,6 +171,7 @@ app.MapAttendanceEndpoints();
 app.MapWorkCalendarEndpoints();
 app.MapWorkAssignmentEndpoints();
 app.MapCheckpointEndpoints();
+app.MapReportingEndpoints();
 
 app.Run();
 

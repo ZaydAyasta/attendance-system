@@ -971,4 +971,7 @@ img {
 .mark-history li { display:grid; grid-template-columns:1fr auto; gap:.2rem .75rem; padding:.65rem 0; border-bottom:1px solid var(--p-content-border-color); }
 .mark-history small { grid-column:1/-1; color:var(--p-text-muted-color); }
 .mark-error { color:var(--p-red-600); }
+.report-actions { display:flex; gap:.75rem; margin:1rem 0; flex-wrap:wrap; }
+.report-summary { margin-bottom:1rem; }
+.report-summary .app-surface { display:grid; gap:.35rem; }
 @media (max-width: 480px) { .mark-actions { grid-template-columns:1fr; } }
