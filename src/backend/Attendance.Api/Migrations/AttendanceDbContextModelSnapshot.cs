@@ -168,6 +168,47 @@ namespace Attendance.Api.Migrations
                     b.ToTable("checkpoints", (string)null);
                 });
 
+            modelBuilder.Entity("Attendance.Api.Modules.LegacyMigration.Domain.LegacyImportMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DestinationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("destination_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
+
+                    b.Property<string>("LegacyId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("legacy_id");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_system");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceSystem", "EntityType", "LegacyId")
+                        .IsUnique();
+
+                    b.ToTable("legacy_import_mappings", (string)null);
+                });
+
             modelBuilder.Entity("Attendance.Api.Modules.Employees.Domain.Employee", b =>
                 {
                     b.Property<Guid>("Id")

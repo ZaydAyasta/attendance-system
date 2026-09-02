@@ -44,6 +44,8 @@ env/
 .env/
 ENV/
 pyvenv.cfg
+local-data/
+*.legacy.sql
 
 # =========================
 # IDEs / Editors
@@ -65,6 +67,7 @@ Thumbs.db
 coverage/
 TestResults/
 *.trx
+.testagent/
 
 # Generated API docs
 docs/bruno/**/*.html

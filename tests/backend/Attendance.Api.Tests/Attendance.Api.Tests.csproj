@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\backend\Attendance.Api\Attendance.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\tools\Attendance.LegacyImporter\Attendance.LegacyImporter.csproj" />
   </ItemGroup>
 
 </Project>
