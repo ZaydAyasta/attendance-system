@@ -1,0 +1,11 @@
+meta {
+  name: List audit events
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/audit-events?page=1&pageSize=50
+  body: none
+  auth: inherit
+}

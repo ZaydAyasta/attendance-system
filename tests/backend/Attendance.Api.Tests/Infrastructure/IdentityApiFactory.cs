@@ -1,4 +1,5 @@
 using Attendance.Api.BuildingBlocks.Persistence;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,8 @@ public sealed class IdentityApiFactory(string connectionString) : WebApplication
         {
             var descriptor = services.Single(x => x.ServiceType == typeof(DbContextOptions<AttendanceDbContext>));
             services.Remove(descriptor);
-            services.AddDbContext<AttendanceDbContext>(options => options.UseNpgsql(connectionString));
+            services.AddDbContext<AttendanceDbContext>((serviceProvider, options) => options.UseNpgsql(connectionString)
+                .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
         });
     }
 }

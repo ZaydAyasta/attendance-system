@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.WorkAssignments.Application;
 using Attendance.Api.Modules.WorkAssignments.Contracts;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Attendance.Api.Modules.WorkAssignments.Endpoints;
@@ -158,6 +159,8 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateAsync(
         CreateWorkAssignmentRequest request,
         WorkAssignmentService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var validation = WorkAssignmentRequestValidator.ValidateCreate(request);
@@ -167,7 +170,9 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.CreateAsync(validation.Value!, cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "CreateWorkAssignment", "EmployeeWorkAssignment", metadata: new { command.EmployeeId, date = command.Date, type = command.Type.ToString() });
+        var result = await service.CreateAsync(command, cancellationToken);
 
         return result.Status switch
         {
@@ -198,6 +203,8 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
         Guid id,
         UpdateWorkAssignmentRequest request,
         WorkAssignmentService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var idValidation = WorkAssignmentRequestValidator.ValidateId(id);
@@ -214,7 +221,9 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.UpdateAsync(id, validation.Value!, cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "UpdateWorkAssignment", "EmployeeWorkAssignment", id.ToString(), new { date = command.Date, type = command.Type.ToString() });
+        var result = await service.UpdateAsync(id, command, cancellationToken);
 
         return result.Status switch
         {
@@ -246,6 +255,8 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
         Guid id,
         CancelWorkAssignmentRequest request,
         WorkAssignmentService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var idValidation = WorkAssignmentRequestValidator.ValidateId(id);
@@ -262,6 +273,7 @@ public static class WorkAssignmentEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
+        audit.Prepare(context.User, "CancelWorkAssignment", "EmployeeWorkAssignment", id.ToString());
         var result = await service.CancelAsync(id, validation.Value!, cancellationToken);
 
         return result.Status switch

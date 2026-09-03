@@ -1,14 +1,17 @@
 using Attendance.Api.BuildingBlocks.Persistence;
 using Attendance.Api.Modules.WorkCalendar.Contracts;
 using Attendance.Api.Modules.WorkCalendar.Domain;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace Attendance.Api.Modules.WorkCalendar.Application;
 
-public sealed class WorkCalendarService(AttendanceDbContext dbContext)
+public sealed class WorkCalendarService(AttendanceDbContext dbContext, AuditOperationContext auditContext)
 {
     private const string UniqueDateIndexName = "IX_work_calendar_days_date";
+
+    public WorkCalendarService(AttendanceDbContext dbContext) : this(dbContext, new AuditOperationContext()) { }
 
     public async Task<IReadOnlyList<WorkCalendarDayResponse>> ListAsync(
         DateOnly? from,
@@ -193,6 +196,15 @@ public sealed class WorkCalendarService(AttendanceDbContext dbContext)
                 updated++;
             }
 
+            auditContext.UpdateMetadata(new
+            {
+                from = dates.Min(),
+                to = dates.Max(),
+                created,
+                updated,
+                skipped,
+                command.OverwriteExisting
+            });
             await dbContext.SaveChangesAsync(cancellationToken);
             if (transaction is not null)
                 await transaction.CommitAsync(cancellationToken);

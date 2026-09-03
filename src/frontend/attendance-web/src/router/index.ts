@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AbsencesView from '@/views/AbsencesView.vue'
 import AccessDeniedView from '@/views/AccessDeniedView.vue'
+import AuditView from '@/views/AuditView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AttendanceView from '@/views/AttendanceView.vue'
 import CheckpointsView from '@/views/CheckpointsView.vue'
@@ -32,6 +33,7 @@ const router = createRouter({
       { path: 'employees', name: 'employees', component: EmployeesView, meta: { title: 'Empleados', allowedRoles: ['Admin'] } },
       { path: 'users', name: 'users', component: UsersView, meta: { title: 'Usuarios del sistema', allowedRoles: ['Admin'] } },
       { path: 'reports', name: 'reports', component: ReportsView, meta: { title: 'Reportes', allowedRoles: ['Admin'] } },
+      { path: 'audit', name: 'audit', component: AuditView, meta: { title: 'Auditoría', allowedRoles: ['Admin'] } },
       { path: 'system', name: 'system', component: SystemView, meta: { title: 'Sistema', allowedRoles: ['IT'] } },
       { path: 'checkpoints', name: 'checkpoints', component: CheckpointsView, meta: { title: 'Checkpoints', allowedRoles: ['IT'] } },
     ] },

@@ -27,7 +27,7 @@ public sealed class IdentityUserAdministrationService(
 
     public async Task<(IdentityUserResponse? Value, string? Error)> CreateAsync(CreateIdentityUserRequest request)
     {
-        var error = await ValidateAsync(request.Username, request.Role, request.EmployeeId);
+        var error = await ValidateAsync(request.Username, request.Email, request.Role, request.EmployeeId);
         if (error is not null)
         {
             return (null, error);
@@ -61,7 +61,7 @@ public sealed class IdentityUserAdministrationService(
         {
             return (null, "User not found.");
         }
-        var error = await ValidateAsync(request.Username, request.Role, user.EmployeeId, user.Id);
+        var error = await ValidateAsync(request.Username, request.Email, request.Role, user.EmployeeId, user.Id);
         if (error is not null)
         {
             return (null, error);
@@ -124,7 +124,7 @@ public sealed class IdentityUserAdministrationService(
         return result.Succeeded ? null : ToFriendlyError(result.Errors);
     }
 
-    private async Task<string?> ValidateAsync(string username, string role, Guid? employeeId, Guid? currentUserId = null)
+    private async Task<string?> ValidateAsync(string username, string? email, string role, Guid? employeeId, Guid? currentUserId = null)
     {
         if (string.IsNullOrWhiteSpace(username)) return "El usuario es obligatorio.";
         if (!IdentityRoles.All.Contains(role)) return "El rol no es válido.";
@@ -132,6 +132,11 @@ public sealed class IdentityUserAdministrationService(
         if (employeeId is Guid id && !await dbContext.Employees.AnyAsync(x => x.Id == id)) return "No se encontró el empleado.";
         if (employeeId is Guid linkedId && await userManager.Users.AnyAsync(x => x.EmployeeId == linkedId && (!currentUserId.HasValue || x.Id != currentUserId.Value)))
             return "Este empleado ya tiene una cuenta.";
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var existingEmailUser = await userManager.FindByEmailAsync(email.Trim());
+            if (existingEmailUser is not null && existingEmailUser.Id != currentUserId) return "El usuario o correo ya existe.";
+        }
         return null;
     }
 

@@ -17,9 +17,12 @@ using Attendance.Api.Modules.Checkpoints.Application;
 using Attendance.Api.Modules.Checkpoints.Endpoints;
 using Attendance.Api.Modules.Reporting.Application;
 using Attendance.Api.Modules.Reporting.Endpoints;
+using Attendance.Api.Modules.Auditing.Application;
+using Attendance.Api.Modules.Auditing.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using PdfSharp.Fonts;
@@ -38,8 +41,14 @@ var connectionString =
     ?? throw new InvalidOperationException(
         "Connection string 'DefaultConnection' was not found.");
 
-builder.Services.AddDbContext<AttendanceDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditOperationContext>();
+builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+builder.Services.AddScoped<IAuditWriter, AuditWriter>();
+builder.Services.AddScoped<AuditQueryService>();
+builder.Services.AddDbContext<AttendanceDbContext>((serviceProvider, options) =>
+    options.UseNpgsql(connectionString)
+        .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.Password.RequiredLength = 8;
@@ -49,7 +58,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Lockout.AllowedForNewUsers = true;
     options.Lockout.MaxFailedAccessAttempts = 5;
-    options.User.RequireUniqueEmail = true;
 })
     .AddEntityFrameworkStores<AttendanceDbContext>()
     .AddDefaultTokenProviders();
@@ -177,6 +185,7 @@ app.MapWorkCalendarEndpoints();
 app.MapWorkAssignmentEndpoints();
 app.MapCheckpointEndpoints();
 app.MapReportingEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
 

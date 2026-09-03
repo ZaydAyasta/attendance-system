@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.WorkCalendar.Application;
 using Attendance.Api.Modules.WorkCalendar.Contracts;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Attendance.Api.Modules.WorkCalendar.Endpoints;
@@ -118,6 +119,8 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateAsync(
         CreateWorkCalendarDayRequest request,
         WorkCalendarService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var validation = WorkCalendarRequestValidator.ValidateCreate(request);
@@ -127,9 +130,9 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.CreateAsync(
-            validation.Value!,
-            cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "CreateWorkCalendarDay", "WorkCalendarDay", command.Date.ToString("O"), new { date = command.Date, dayType = command.DayType.ToString() });
+        var result = await service.CreateAsync(command, cancellationToken);
 
         return result.Status switch
         {
@@ -151,6 +154,8 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
         DateOnly date,
         UpdateWorkCalendarDayRequest request,
         WorkCalendarService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var dateValidation = WorkCalendarRequestValidator.ValidateDate(date);
@@ -167,10 +172,9 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.UpdateAsync(
-            date,
-            validation.Value!,
-            cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "UpdateWorkCalendarDay", "WorkCalendarDay", date.ToString("O"), new { date, dayType = command.DayType.ToString() });
+        var result = await service.UpdateAsync(date, command, cancellationToken);
 
         return result.Status switch
         {
@@ -189,13 +193,17 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
     private static async Task<IResult> BulkConfigureAsync(
         BulkConfigureWorkCalendarRequest request,
         WorkCalendarService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var validation = WorkCalendarRequestValidator.ValidateBulkConfigure(request);
         if (!validation.IsValid)
             return TypedResults.ValidationProblem(validation.Errors);
 
-        var result = await service.BulkConfigureAsync(validation.Value!, cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "BulkConfigureWorkCalendar", "WorkCalendarDay", metadata: new { from = command.Days.Min(x => x.Date), to = command.Days.Max(x => x.Date), command.OverwriteExisting });
+        var result = await service.BulkConfigureAsync(command, cancellationToken);
         return result.Status switch
         {
             WorkCalendarWriteStatus.Success => TypedResults.Ok(result.Value),
@@ -209,6 +217,8 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
     private static async Task<IResult> DeleteAsync(
         DateOnly date,
         WorkCalendarService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var validation = WorkCalendarRequestValidator.ValidateDate(date);
@@ -218,6 +228,7 @@ public static class WorkCalendarEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
+        audit.Prepare(context.User, "DeleteWorkCalendarDay", "WorkCalendarDay", date.ToString("O"), new { date });
         var result = await service.DeleteAsync(date, cancellationToken);
 
         return result.Status switch

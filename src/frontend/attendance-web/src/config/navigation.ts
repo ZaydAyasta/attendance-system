@@ -18,6 +18,7 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Empleados', description: 'Consulta el padrón y la información operativa.', icon: 'pi pi-users', route: '/employees', allowedRoles: ['Admin'] },
   { label: 'Usuarios del sistema', description: 'Crea y administra las cuentas de acceso.', icon: 'pi pi-user-edit', route: '/users', allowedRoles: ['Admin'] },
   { label: 'Reportes', description: 'Prepara salidas consolidadas para revisión interna.', icon: 'pi pi-chart-bar', route: '/reports', allowedRoles: ['Admin'] },
+  { label: 'Auditoría', description: 'Consulta las acciones administrativas registradas.', icon: 'pi pi-history', route: '/audit', allowedRoles: ['Admin'] },
   { label: 'Sistema', description: 'Revisa configuración técnica y estados internos.', icon: 'pi pi-cog', route: '/system', allowedRoles: ['IT'] },
   { label: 'Checkpoints', description: 'Supervisa puntos de captura y diagnóstico operativo.', icon: 'pi pi-map-marker', route: '/checkpoints', allowedRoles: ['IT'] },
 ]

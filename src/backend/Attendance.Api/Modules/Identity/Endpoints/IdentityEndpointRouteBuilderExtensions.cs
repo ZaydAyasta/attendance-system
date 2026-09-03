@@ -3,6 +3,7 @@ using Attendance.Api.Modules.Attendance.Application;
 using Attendance.Api.Modules.Identity.Application;
 using Attendance.Api.Modules.Identity.Contracts;
 using Attendance.Api.Modules.Identity.Domain;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -120,28 +121,32 @@ public static class IdentityEndpointRouteBuilderExtensions
     private static async Task<IResult> ListUsersAsync(IdentityUserAdministrationService service)
         => TypedResults.Ok(await service.ListAsync());
 
-    private static async Task<IResult> CreateUserAsync(CreateIdentityUserRequest request, IdentityUserAdministrationService service)
+    private static async Task<IResult> CreateUserAsync(CreateIdentityUserRequest request, IdentityUserAdministrationService service, IAuditWriter audit, HttpContext context)
     {
+        audit.Prepare(context.User, "CreateUser", "ApplicationUser", metadata: new { request.Username, request.Role, request.EmployeeId });
         var result = await service.CreateAsync(request);
         return result.Value is null ? TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [result.Error ?? "Invalid user."] }) : TypedResults.Created($"/api/identity/users/{result.Value.Id}", result.Value);
     }
 
-    private static async Task<IResult> UpdateUserAsync(Guid id, UpdateIdentityUserRequest request, IdentityUserAdministrationService service)
+    private static async Task<IResult> UpdateUserAsync(Guid id, UpdateIdentityUserRequest request, IdentityUserAdministrationService service, IAuditWriter audit, HttpContext context)
     {
+        audit.Prepare(context.User, "UpdateUserRole", "ApplicationUser", id.ToString(), new { targetUserId = id, request.Role });
         var result = await service.UpdateAsync(id, request);
         if (result.Value is not null) return TypedResults.Ok(result.Value);
         return result.Error == "User not found." ? TypedResults.NotFound() : TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [result.Error ?? "Invalid user."] });
     }
 
-    private static async Task<IResult> SetStatusAsync(Guid id, SetIdentityUserStatusRequest request, HttpContext context, IdentityUserAdministrationService service)
+    private static async Task<IResult> SetStatusAsync(Guid id, SetIdentityUserStatusRequest request, HttpContext context, IdentityUserAdministrationService service, IAuditWriter audit)
     {
+        audit.Prepare(context.User, request.IsActive ? "ActivateUser" : "DeactivateUser", "ApplicationUser", id.ToString(), new { targetUserId = id });
         var result = await service.SetStatusAsync(id, request.IsActive, context.User);
         if (result.Value is not null) return TypedResults.Ok(result.Value);
         return result.Error == "User not found." ? TypedResults.NotFound() : TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [result.Error ?? "Invalid user."] });
     }
 
-    private static async Task<IResult> ResetPasswordAsync(Guid id, ResetIdentityUserPasswordRequest request, IdentityUserAdministrationService service)
+    private static async Task<IResult> ResetPasswordAsync(Guid id, ResetIdentityUserPasswordRequest request, IdentityUserAdministrationService service, IAuditWriter audit, HttpContext context)
     {
+        audit.Prepare(context.User, "ResetUserPassword", "ApplicationUser", id.ToString(), new { targetUserId = id });
         var error = await service.ResetPasswordAsync(id, request.Password);
         return error is null ? TypedResults.NoContent() : error == "User not found."
             ? TypedResults.NotFound()

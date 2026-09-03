@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.Checkpoints.Application;
 using Attendance.Api.Modules.Checkpoints.Contracts;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace Attendance.Api.Modules.Checkpoints.Endpoints;
@@ -21,28 +22,31 @@ public static class CheckpointEndpointRouteBuilderExtensions
         return endpoints;
     }
 
-    private static async Task<IResult> CreateAsync(CreateCheckpointRequest request, CheckpointService service, CancellationToken ct)
+    private static async Task<IResult> CreateAsync(CreateCheckpointRequest request, CheckpointService service, IAuditWriter audit, HttpContext context, CancellationToken ct)
     {
         try
         {
+            audit.Prepare(context.User, "CreateCheckpoint", "Checkpoint", metadata: new { request.Code, request.Type });
             var result = await service.CreateAsync(request, ct);
             return result.Status == CheckpointWriteStatus.Success ? TypedResults.Created($"/api/checkpoints/{result.Value!.Id}", result.Value) : WriteProblem(result.Status);
         }
         catch (ArgumentException exception) { return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["checkpoint"] = [exception.Message] }); }
     }
 
-    private static async Task<IResult> UpdateAsync(Guid id, UpdateCheckpointRequest request, CheckpointService service, CancellationToken ct)
+    private static async Task<IResult> UpdateAsync(Guid id, UpdateCheckpointRequest request, CheckpointService service, IAuditWriter audit, HttpContext context, CancellationToken ct)
     {
         try
         {
+            audit.Prepare(context.User, "UpdateCheckpoint", "Checkpoint", id.ToString(), new { request.Code, request.Type });
             var result = await service.UpdateAsync(id, request, ct);
             return result.Status == CheckpointWriteStatus.Success ? TypedResults.Ok(result.Value) : WriteProblem(result.Status);
         }
         catch (ArgumentException exception) { return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["checkpoint"] = [exception.Message] }); }
     }
 
-    private static async Task<IResult> SetStatusAsync(Guid id, SetCheckpointStatusRequest request, CheckpointService service, CancellationToken ct)
+    private static async Task<IResult> SetStatusAsync(Guid id, SetCheckpointStatusRequest request, CheckpointService service, IAuditWriter audit, HttpContext context, CancellationToken ct)
     {
+        audit.Prepare(context.User, request.IsActive ? "ActivateCheckpoint" : "DeactivateCheckpoint", "Checkpoint", id.ToString());
         var result = await service.SetStatusAsync(id, request, ct);
         return result.Status == CheckpointWriteStatus.Success ? TypedResults.Ok(result.Value) : WriteProblem(result.Status);
     }

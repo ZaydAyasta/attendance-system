@@ -6,6 +6,7 @@ using Attendance.Api.Modules.WorkAssignments.Domain;
 using Attendance.Api.Modules.Identity.Domain;
 using Attendance.Api.Modules.Checkpoints.Domain;
 using Attendance.Api.Modules.LegacyMigration.Domain;
+using Attendance.Api.Modules.Auditing.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,8 @@ public sealed class AttendanceDbContext(
     public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
 
     public DbSet<LegacyImportMapping> LegacyImportMappings => Set<LegacyImportMapping>();
+
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

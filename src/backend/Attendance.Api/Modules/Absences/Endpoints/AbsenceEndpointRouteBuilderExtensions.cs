@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.Absences.Application;
 using Attendance.Api.Modules.Absences.Contracts;
+using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Attendance.Api.Modules.Absences.Endpoints;
@@ -160,6 +161,8 @@ public static class AbsenceEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateAsync(
         CreateAbsenceRequest request,
         AbsenceService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var validation = AbsenceRequestValidator.ValidateCreate(request);
@@ -169,7 +172,9 @@ public static class AbsenceEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.CreateAsync(validation.Value!, cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "CreateAbsence", "Absence", metadata: new { command.EmployeeId, from = command.Period.Start, to = command.Period.End, type = command.Type.ToString() });
+        var result = await service.CreateAsync(command, cancellationToken);
 
         return result.Status switch
         {
@@ -196,6 +201,8 @@ public static class AbsenceEndpointRouteBuilderExtensions
         Guid id,
         UpdateAbsenceRequest request,
         AbsenceService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var idValidation = AbsenceRequestValidator.ValidateId(id);
@@ -212,7 +219,9 @@ public static class AbsenceEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
-        var result = await service.UpdateAsync(id, validation.Value!, cancellationToken);
+        var command = validation.Value!;
+        audit.Prepare(context.User, "UpdateAbsence", "Absence", id.ToString(), new { from = command.Period.Start, to = command.Period.End, type = command.Type.ToString() });
+        var result = await service.UpdateAsync(id, command, cancellationToken);
 
         return result.Status switch
         {
@@ -240,6 +249,8 @@ public static class AbsenceEndpointRouteBuilderExtensions
         Guid id,
         CancelAbsenceRequest request,
         AbsenceService service,
+        IAuditWriter audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         var idValidation = AbsenceRequestValidator.ValidateId(id);
@@ -256,6 +267,7 @@ public static class AbsenceEndpointRouteBuilderExtensions
             return TypedResults.ValidationProblem(validation.Errors);
         }
 
+        audit.Prepare(context.User, "CancelAbsence", "Absence", id.ToString());
         var result = await service.CancelAsync(id, validation.Value!, cancellationToken);
 
         return result.Status switch

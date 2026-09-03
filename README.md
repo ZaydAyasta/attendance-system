@@ -216,6 +216,18 @@ Bruno:
 
 Bruno sigue siendo la colección ejecutable y de ejemplos manuales. Scalar es la referencia visual principal del API en Development.
 
+## Auditoría
+
+La auditoría administrativa es un registro append-only: no existe edición ni
+eliminación de eventos. Registra las mutaciones administrativas relevantes de
+empleados, ausencias, calendario laboral, asignaciones, checkpoints y cuentas
+Identity. Cada evento conserva el actor autenticado, el momento UTC, la acción,
+el recurso y metadata mínima; la interfaz la presenta en hora `America/Lima`.
+
+Sólo `Admin` puede consultar `/api/audit-events`. No se registran contraseñas,
+hashes, tokens, cookies, CSRF, QR ni información de conexión. El volumen del MVP
+es bajo y aún no hay una política automática de retención o purga.
+
 ## Documentación adicional
 
 - Reglas de negocio de evaluación diaria: `docs/attendance-evaluation-rules.md`
