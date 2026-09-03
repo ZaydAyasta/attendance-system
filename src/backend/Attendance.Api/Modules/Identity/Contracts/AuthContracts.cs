@@ -1,6 +1,6 @@
 namespace Attendance.Api.Modules.Identity.Contracts;
 
-public sealed record LoginRequest(string UsernameOrEmail, string Password);
+public sealed record LoginRequest(string UsernameOrEmail, string Password, bool RememberMe = false);
 
 public sealed record EmployeeSummaryResponse(string EmployeeCode, string FullName);
 
@@ -23,9 +23,11 @@ public sealed record CreateIdentityUserRequest(
 public sealed record UpdateIdentityUserRequest(
     string Username,
     string? Email,
-    string Role,
-    Guid? EmployeeId,
-    bool IsActive);
+    string Role);
+
+public sealed record SetIdentityUserStatusRequest(bool IsActive);
+
+public sealed record ResetIdentityUserPasswordRequest(string Password);
 
 public sealed record IdentityUserResponse(
     Guid Id,
@@ -33,4 +35,5 @@ public sealed record IdentityUserResponse(
     string? Email,
     string Role,
     Guid? EmployeeId,
-    bool IsActive);
+    bool IsActive,
+    EmployeeSummaryResponse? Employee);

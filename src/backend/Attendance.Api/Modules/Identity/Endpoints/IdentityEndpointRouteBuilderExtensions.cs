@@ -47,6 +47,12 @@ public static class IdentityEndpointRouteBuilderExtensions
         administration.MapPut("/{id:guid}", UpdateUserAsync).WithName("UpdateIdentityUser")
             .Accepts<UpdateIdentityUserRequest>("application/json").Produces<IdentityUserResponse>()
             .Produces(StatusCodes.Status404NotFound).ProducesValidationProblem(StatusCodes.Status400BadRequest);
+        administration.MapPut("/{id:guid}/status", SetStatusAsync).WithName("SetIdentityUserStatus")
+            .Accepts<SetIdentityUserStatusRequest>("application/json").Produces<IdentityUserResponse>()
+            .Produces(StatusCodes.Status404NotFound).ProducesValidationProblem(StatusCodes.Status400BadRequest);
+        administration.MapPost("/{id:guid}/reset-password", ResetPasswordAsync).WithName("ResetIdentityUserPassword")
+            .Accepts<ResetIdentityUserPasswordRequest>("application/json").Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound).ProducesValidationProblem(StatusCodes.Status400BadRequest);
         return endpoints;
     }
 
@@ -63,9 +69,10 @@ public static class IdentityEndpointRouteBuilderExtensions
         var value = request.UsernameOrEmail.Trim();
         var user = await userManager.FindByNameAsync(value) ?? await userManager.FindByEmailAsync(value);
         if (user is null) return TypedResults.Unauthorized();
+        if (await userManager.IsLockedOutAsync(user)) return TypedResults.Unauthorized();
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!result.Succeeded) return TypedResults.Unauthorized();
-        await signInManager.SignInAsync(user, isPersistent: false);
+        await signInManager.SignInAsync(user, isPersistent: request.RememberMe);
         return TypedResults.Ok(await sessions.GetResponseAsync(user));
     }
 
@@ -124,6 +131,21 @@ public static class IdentityEndpointRouteBuilderExtensions
         var result = await service.UpdateAsync(id, request);
         if (result.Value is not null) return TypedResults.Ok(result.Value);
         return result.Error == "User not found." ? TypedResults.NotFound() : TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [result.Error ?? "Invalid user."] });
+    }
+
+    private static async Task<IResult> SetStatusAsync(Guid id, SetIdentityUserStatusRequest request, HttpContext context, IdentityUserAdministrationService service)
+    {
+        var result = await service.SetStatusAsync(id, request.IsActive, context.User);
+        if (result.Value is not null) return TypedResults.Ok(result.Value);
+        return result.Error == "User not found." ? TypedResults.NotFound() : TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [result.Error ?? "Invalid user."] });
+    }
+
+    private static async Task<IResult> ResetPasswordAsync(Guid id, ResetIdentityUserPasswordRequest request, IdentityUserAdministrationService service)
+    {
+        var error = await service.ResetPasswordAsync(id, request.Password);
+        return error is null ? TypedResults.NoContent() : error == "User not found."
+            ? TypedResults.NotFound()
+            : TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["identity"] = [error] });
     }
 
     private static IResult MissingEmployee() => TypedResults.Problem("The current User account is not associated with an employee.", statusCode: StatusCodes.Status403Forbidden, title: "Employee association required.");

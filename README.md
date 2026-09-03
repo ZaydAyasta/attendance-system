@@ -128,6 +128,29 @@ Las operaciones mutantes requieren antiforgery. La SPA obtiene el token en
 `GET /api/auth/csrf` y lo envía mediante el header `X-CSRF-TOKEN`; Bruno incluye
 requests equivalentes en las carpetas Auth y My Data.
 
+### Gestión de cuentas y sesión
+
+Sólo `Admin` puede acceder a **Usuarios del sistema** y administrar cuentas.
+Desde esa pantalla puede crear una cuenta, asignar el rol `Administrador`,
+`Usuario` o `TI`, activar/desactivar la cuenta y restablecer su contraseña. Una
+cuenta `Usuario` debe vincularse a un único empleado; ese vínculo se conserva y
+no se cambia desde la interfaz para evitar asignar a una persona la asistencia
+de otra.
+
+Al iniciar sesión, **Mantener sesión iniciada** está activado por defecto. Con
+esa opción, la cookie HttpOnly persistente dura hasta 30 días y usa renovación
+deslizante; sin ella, se emite una cookie de sesión que el navegador elimina al
+cerrarse. No se guardan contraseñas ni tokens en `localStorage`. Cerrar sesión
+elimina la cookie. Desactivar una cuenta, cambiar su rol o restablecer su
+contraseña actualiza su `SecurityStamp`; las cookies se revalidan como máximo
+cada cinco minutos.
+
+Para el primer administrador de producción, provisiona temporalmente las claves
+`Identity:SeedUsers:Admin:Username` y `Identity:SeedUsers:Admin:Password` en el
+gestor de secretos de producción, inicia la aplicación una vez y retira esas
+claves. Nunca uses una contraseña por defecto ni las incluyas en código,
+Bruno o documentación versionada.
+
 ## Attendance Capture
 
 La captura operativa usa checkpoints físicos y QR dinámicos. IT administra puntos

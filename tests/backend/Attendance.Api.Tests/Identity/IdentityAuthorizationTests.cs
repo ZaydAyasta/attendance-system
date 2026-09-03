@@ -58,6 +58,129 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
         Assert.Equal(HttpStatusCode.Unauthorized, (await admin.GetAsync("/api/me")).StatusCode);
     }
 
+    [RequiresContainerRuntimeFact]
+    public async Task Only_admin_can_list_identity_users()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        await CreateUserAsync(users, "user", IdentityRoles.User, null);
+        await CreateUserAsync(users, "it", IdentityRoles.IT, null);
+
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        using var user = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        using var it = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(user, "user", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(it, "it", "Password1")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/identity/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await user.GetAsync("/api/identity/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await it.GetAsync("/api/identity/users")).StatusCode);
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Creating_user_requires_employee_and_prevents_duplicate_employee_account()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
+        var employee = Employee.Create("EMP-1", "Ana", "Torres", new DateOnly(2025, 1, 1));
+        db.Employees.Add(employee);
+        await db.SaveChangesAsync();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+
+        var missingEmployee = await SendWithCsrfAsync(admin, HttpMethod.Post, "/api/identity/users",
+            new CreateIdentityUserRequest("new-user", null, "Password1", IdentityRoles.User, null));
+        Assert.Equal(HttpStatusCode.BadRequest, missingEmployee.StatusCode);
+
+        var create = await SendWithCsrfAsync(admin, HttpMethod.Post, "/api/identity/users",
+            new CreateIdentityUserRequest("new-user", null, "Password1", IdentityRoles.User, employee.Id));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        var duplicate = await SendWithCsrfAsync(admin, HttpMethod.Post, "/api/identity/users",
+            new CreateIdentityUserRequest("other-user", null, "Password1", IdentityRoles.User, employee.Id));
+        Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
+        Assert.Contains("Este empleado ya tiene una cuenta", await duplicate.Content.ReadAsStringAsync());
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Disabled_account_cannot_sign_in_and_admin_cannot_disable_self()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        await CreateUserAsync(users, "disabled", IdentityRoles.IT, null);
+        var disabled = await users.FindByNameAsync("disabled");
+        Assert.NotNull(disabled);
+        disabled!.LockoutEnd = DateTimeOffset.MaxValue;
+        Assert.True((await users.UpdateAsync(disabled)).Succeeded);
+
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(factory.CreateClient(), "disabled", "Password1")).StatusCode);
+        var me = await admin.GetFromJsonAsync<CurrentUserResponse>("/api/me");
+        Assert.NotNull(me);
+        var selfDisable = await SendWithCsrfAsync(admin, HttpMethod.Put, $"/api/identity/users/{me!.Id}/status", new SetIdentityUserStatusRequest(false));
+        Assert.Equal(HttpStatusCode.BadRequest, selfDisable.StatusCode);
+        Assert.Contains("No puedes desactivar tu propia cuenta", await selfDisable.Content.ReadAsStringAsync());
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Reset_password_replaces_old_credential_and_role_update_is_reflected()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        await CreateUserAsync(users, "managed", IdentityRoles.IT, null);
+        var managed = await users.FindByNameAsync("managed");
+        Assert.NotNull(managed);
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+
+        var reset = await SendWithCsrfAsync(admin, HttpMethod.Post, $"/api/identity/users/{managed!.Id}/reset-password", new ResetIdentityUserPasswordRequest("NewPassword1"));
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        using var oldPasswordClient = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        using var newPasswordClient = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(oldPasswordClient, "managed", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(newPasswordClient, "managed", "NewPassword1")).StatusCode);
+
+        var update = await SendWithCsrfAsync(admin, HttpMethod.Put, $"/api/identity/users/{managed.Id}", new UpdateIdentityUserRequest("managed", null, IdentityRoles.Admin));
+        var response = await update.Content.ReadFromJsonAsync<IdentityUserResponse>();
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.NotNull(response);
+        Assert.Equal(IdentityRoles.Admin, response!.Role);
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Remember_me_controls_cookie_persistence()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var remembered = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        using var sessionOnly = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+
+        var persistentLogin = await LoginAsync(remembered, "admin", "Password1", rememberMe: true);
+        var sessionLogin = await LoginAsync(sessionOnly, "admin", "Password1", rememberMe: false);
+        var persistentCookie = persistentLogin.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("attendance.auth=", StringComparison.OrdinalIgnoreCase));
+        var sessionCookie = sessionLogin.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("attendance.auth=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("expires=", persistentCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("expires=", sessionCookie, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task CreateUserAsync(UserManager<ApplicationUser> users, string username, string role, Guid? employeeId)
     {
         var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = username, EmployeeId = employeeId, LockoutEnabled = true };
@@ -66,10 +189,18 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
         Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
     }
 
-    private static async Task<HttpResponseMessage> LoginAsync(HttpClient client, string username, string password)
+    private static async Task<HttpResponseMessage> LoginAsync(HttpClient client, string username, string password, bool rememberMe = false)
     {
         var token = await client.GetFromJsonAsync<AntiforgeryTokenResponse>("/api/auth/csrf");
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login") { Content = JsonContent.Create(new LoginRequest(username, password)) };
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login") { Content = JsonContent.Create(new LoginRequest(username, password, rememberMe)) };
+        request.Headers.Add("X-CSRF-TOKEN", token!.Token);
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> SendWithCsrfAsync(HttpClient client, HttpMethod method, string path, object body)
+    {
+        var token = await client.GetFromJsonAsync<AntiforgeryTokenResponse>("/api/auth/csrf");
+        var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
         request.Headers.Add("X-CSRF-TOKEN", token!.Token);
         return await client.SendAsync(request);
     }

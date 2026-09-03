@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import AttendanceView from '@/views/AttendanceView.vue'
 import CheckpointsView from '@/views/CheckpointsView.vue'
 import EmployeesView from '@/views/EmployeesView.vue'
+import UsersView from '@/views/UsersView.vue'
 import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
 import MarkView from '@/views/MarkView.vue'
@@ -29,6 +30,7 @@ const router = createRouter({
       { path: 'work-calendar', name: 'work-calendar', component: WorkCalendarView, meta: { title: 'Calendario laboral', allowedRoles: ['Admin'] } },
       { path: 'work-assignments', name: 'work-assignments', component: WorkAssignmentsView, meta: { title: 'Asignaciones', allowedRoles: ['Admin'] } },
       { path: 'employees', name: 'employees', component: EmployeesView, meta: { title: 'Empleados', allowedRoles: ['Admin'] } },
+      { path: 'users', name: 'users', component: UsersView, meta: { title: 'Usuarios del sistema', allowedRoles: ['Admin'] } },
       { path: 'reports', name: 'reports', component: ReportsView, meta: { title: 'Reportes', allowedRoles: ['Admin'] } },
       { path: 'system', name: 'system', component: SystemView, meta: { title: 'Sistema', allowedRoles: ['IT'] } },
       { path: 'checkpoints', name: 'checkpoints', component: CheckpointsView, meta: { title: 'Checkpoints', allowedRoles: ['IT'] } },

@@ -19,9 +19,9 @@ export async function getCurrentUser(): Promise<AuthUser> {
   return (await apiClient.get<AuthUser>('/me')).data
 }
 
-export async function login(usernameOrEmail: string, password: string): Promise<AuthUser> {
+export async function login(usernameOrEmail: string, password: string, rememberMe: boolean): Promise<AuthUser> {
   await ensureAntiforgeryToken()
-  return (await apiClient.post<AuthUser>('/auth/login', { usernameOrEmail, password })).data
+  return (await apiClient.post<AuthUser>('/auth/login', { usernameOrEmail, password, rememberMe })).data
 }
 
 export async function logout(): Promise<void> {
