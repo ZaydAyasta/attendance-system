@@ -27,7 +27,8 @@ public sealed class IdentityUserAdministrationService(
 
     public async Task<(IdentityUserResponse? Value, string? Error)> CreateAsync(CreateIdentityUserRequest request)
     {
-        var error = await ValidateAsync(request.Username, request.Email, request.Role, request.EmployeeId);
+        var email = OptionalEmail.Normalize(request.Email);
+        var error = await ValidateAsync(request.Username, email, request.Role, request.EmployeeId);
         if (error is not null)
         {
             return (null, error);
@@ -38,7 +39,7 @@ public sealed class IdentityUserAdministrationService(
         {
             Id = Guid.NewGuid(),
             UserName = request.Username.Trim(),
-            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            Email = email,
             EmployeeId = request.EmployeeId,
             LockoutEnabled = true,
         };
@@ -63,7 +64,8 @@ public sealed class IdentityUserAdministrationService(
         {
             return (null, "User not found.");
         }
-        var error = await ValidateAsync(request.Username, request.Email, request.Role, user.EmployeeId, user.Id);
+        var email = OptionalEmail.Normalize(request.Email);
+        var error = await ValidateAsync(request.Username, email, request.Role, user.EmployeeId, user.Id);
         if (error is not null)
         {
             return (null, error);
@@ -75,7 +77,7 @@ public sealed class IdentityUserAdministrationService(
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         user.UserName = request.Username.Trim();
-        user.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        user.Email = email;
         var update = await userManager.UpdateAsync(user);
         if (!update.Succeeded)
         {
@@ -137,6 +139,7 @@ public sealed class IdentityUserAdministrationService(
     {
         if (string.IsNullOrWhiteSpace(username)) return "El usuario es obligatorio.";
         if (!IdentityRoles.All.Contains(role)) return "El rol no es válido.";
+        if (!OptionalEmail.IsValid(email)) return "El correo no es válido.";
         if (role == IdentityRoles.User && employeeId is null) return "Una cuenta Usuario requiere un empleado asociado.";
         if (employeeId is Guid id && !await dbContext.Employees.AnyAsync(x => x.Id == id)) return "No se encontró el empleado.";
         if (employeeId is Guid linkedId && await userManager.Users.AnyAsync(x => x.EmployeeId == linkedId && (!currentUserId.HasValue || x.Id != currentUserId.Value)))

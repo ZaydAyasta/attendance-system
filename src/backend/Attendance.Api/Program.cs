@@ -86,7 +86,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Lockout.AllowedForNewUsers = true;
     options.Lockout.MaxFailedAccessAttempts = 5;
-    options.User.RequireUniqueEmail = true;
+    // Usernames are the required identity. Email is optional, while the
+    // database unique index still protects supplied non-null email addresses.
+    options.User.RequireUniqueEmail = false;
 })
     .AddEntityFrameworkStores<AttendanceDbContext>()
     .AddDefaultTokenProviders();

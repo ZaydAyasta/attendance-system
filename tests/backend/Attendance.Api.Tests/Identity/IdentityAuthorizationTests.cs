@@ -219,7 +219,68 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
 
         var administrator = await users.FindByNameAsync("bootstrap-admin");
         Assert.NotNull(administrator);
+        Assert.Null(administrator!.Email);
+        Assert.Null(administrator.NormalizedEmail);
         Assert.Contains(IdentityRoles.Admin, await users.GetRolesAsync(administrator!));
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Production_bootstrap_rejects_an_explicit_invalid_email()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Identity:BootstrapAdmin:Enabled"] = "true",
+            ["Identity:BootstrapAdmin:Username"] = "bootstrap-admin",
+            ["Identity:BootstrapAdmin:Password"] = "BootstrapPass1",
+            ["Identity:BootstrapAdmin:Email"] = "not-an-email"
+        }).Build();
+        var bootstrap = scope.ServiceProvider.GetRequiredService<ProductionAdminBootstrapService>();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => bootstrap.BootstrapAsync(configuration));
+
+        Assert.Equal("Identity bootstrap email is invalid.", exception.Message);
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Creating_user_normalizes_whitespace_email_to_null()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+
+        var response = await SendWithCsrfAsync(admin, HttpMethod.Post, "/api/identity/users",
+            new CreateIdentityUserRequest("no-email", "   ", "Password1", IdentityRoles.IT, null));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await users.FindByNameAsync("no-email");
+        Assert.NotNull(created);
+        Assert.Null(created!.Email);
+        Assert.Null(created.NormalizedEmail);
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task Creating_user_rejects_an_explicit_invalid_email()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+
+        var response = await SendWithCsrfAsync(admin, HttpMethod.Post, "/api/identity/users",
+            new CreateIdentityUserRequest("invalid-email", "not-an-email", "Password1", IdentityRoles.IT, null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("El correo no es válido.", await response.Content.ReadAsStringAsync());
     }
 
     [RequiresContainerRuntimeFact]

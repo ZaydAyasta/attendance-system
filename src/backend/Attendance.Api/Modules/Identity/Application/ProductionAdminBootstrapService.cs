@@ -24,10 +24,15 @@ public sealed class ProductionAdminBootstrapService(
 
         var username = configuration["Identity:BootstrapAdmin:Username"]?.Trim();
         var password = configuration["Identity:BootstrapAdmin:Password"];
+        var email = OptionalEmail.Normalize(configuration["Identity:BootstrapAdmin:Email"]);
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
             throw new InvalidOperationException(
                 "Identity bootstrap is enabled but the administrator username or password is missing.");
+        }
+        if (!OptionalEmail.IsValid(email))
+        {
+            throw new InvalidOperationException("Identity bootstrap email is invalid.");
         }
 
         if (await userManager.FindByNameAsync(username) is not null)
@@ -41,6 +46,7 @@ public sealed class ProductionAdminBootstrapService(
         {
             Id = Guid.NewGuid(),
             UserName = username,
+            Email = email,
             LockoutEnabled = true
         };
         var create = await userManager.CreateAsync(user, password);
