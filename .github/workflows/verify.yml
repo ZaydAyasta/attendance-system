@@ -1,0 +1,83 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend and PostgreSQL integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.302
+      - name: Validate production smoke-test syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/Test-ProductionDeployment.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { $_.Message }
+            exit 1
+          }
+      - run: dotnet restore AttendanceSystem.sln
+      - run: dotnet build AttendanceSystem.sln --configuration Release --no-restore -m:1
+      - run: dotnet test AttendanceSystem.sln --configuration Release --no-build -m:1
+
+  frontend:
+    name: Frontend tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: src/frontend/attendance-web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/frontend/attendance-web/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  release-package:
+    name: Release package contains the SPA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/frontend/attendance-web/package-lock.json
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.302
+      - run: npm ci
+        working-directory: src/frontend/attendance-web
+      - run: npm run build
+        working-directory: src/frontend/attendance-web
+      - run: dotnet restore AttendanceSystem.sln
+      - run: dotnet publish src/backend/Attendance.Api/Attendance.Api.csproj --configuration Release --no-restore --output artifacts/attendance-release
+      - run: test -f artifacts/attendance-release/wwwroot/index.html

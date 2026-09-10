@@ -1,4 +1,5 @@
 using Attendance.Api.BuildingBlocks.Persistence;
+using Attendance.Api.BuildingBlocks.Operations;
 using Attendance.Api.Modules.Absences.Application;
 using Attendance.Api.Modules.Absences.Endpoints;
 using Attendance.Api.Modules.Employees.Application;
@@ -20,12 +21,17 @@ using Attendance.Api.Modules.Reporting.Endpoints;
 using Attendance.Api.Modules.Auditing.Application;
 using Attendance.Api.Modules.Auditing.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using PdfSharp.Fonts;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,10 +42,36 @@ if (OperatingSystem.IsWindows())
     GlobalFontSettings.UseWindowsFontsUnderWindows = true;
 }
 
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' was not found.");
+if (builder.Environment.IsProduction())
+{
+    var allowedHosts = builder.Configuration["AllowedHosts"];
+    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Split(';', StringSplitOptions.TrimEntries).Contains("*"))
+    {
+        throw new InvalidOperationException(
+            "AllowedHosts must list the production host name instead of '*'.");
+    }
+}
+
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("AttendanceSystem");
+if (builder.Environment.IsProduction())
+{
+    var keysDirectory = builder.Configuration["DataProtection:KeysDirectory"];
+    if (string.IsNullOrWhiteSpace(keysDirectory))
+    {
+        throw new InvalidOperationException(
+            "DataProtection:KeysDirectory must point to a persistent, access-restricted directory in production.");
+    }
+    if (!OperatingSystem.IsWindows())
+    {
+        throw new InvalidOperationException(
+            "Production Data Protection requires an approved key-encryption provider on this operating system.");
+    }
+
+    var keyDirectory = Directory.CreateDirectory(keysDirectory);
+    dataProtection.PersistKeysToFileSystem(keyDirectory)
+        .ProtectKeysWithDpapi();
+}
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditOperationContext>();
@@ -47,7 +79,10 @@ builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 builder.Services.AddScoped<IAuditWriter, AuditWriter>();
 builder.Services.AddScoped<AuditQueryService>();
 builder.Services.AddDbContext<AttendanceDbContext>((serviceProvider, options) =>
-    options.UseNpgsql(connectionString)
+    options.UseNpgsql(
+            serviceProvider.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' was not found."))
         .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
@@ -58,6 +93,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Lockout.AllowedForNewUsers = true;
     options.Lockout.MaxFailedAccessAttempts = 5;
+    options.User.RequireUniqueEmail = true;
 })
     .AddEntityFrameworkStores<AttendanceDbContext>()
     .AddDefaultTokenProviders();
@@ -93,8 +129,34 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ITOnly", policy => policy.RequireRole(IdentityRoles.IT));
 });
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks()
+    .AddCheck<AttendanceDatabaseHealthCheck>("database", tags: ["ready"]);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Demasiados intentos de inicio de sesión.",
+            Detail = "Espera un minuto antes de volver a intentarlo."
+        }, cancellationToken: cancellationToken);
+    };
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+});
 builder.Services.AddScoped<IdentitySessionService>();
 builder.Services.AddScoped<IdentityUserAdministrationService>();
+builder.Services.AddScoped<ProductionAdminBootstrapService>();
 builder.Services.AddAbsencesModule();
 builder.Services.AddEmployeesModule();
 builder.Services.AddAttendanceModule(builder.Configuration);
@@ -117,9 +179,17 @@ builder.Services.AddOpenApi("v1", options =>
 
 var app = builder.Build();
 
-await using (var identityScope = app.Services.CreateAsyncScope())
+var skipIdentityInitialization = app.Environment.IsEnvironment("Testing") &&
+    app.Configuration.GetValue<bool>("Testing:SkipIdentityInitialization");
+if (!skipIdentityInitialization)
 {
+    await using var identityScope = app.Services.CreateAsyncScope();
     await EnsureIdentityRolesAsync(identityScope.ServiceProvider);
+    if (app.Environment.IsProduction())
+    {
+        await identityScope.ServiceProvider.GetRequiredService<ProductionAdminBootstrapService>()
+            .BootstrapAsync(app.Configuration);
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -168,14 +238,27 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
+    app.UseExceptionHandler();
+}
+
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseHttpsRedirection();
 }
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
 app.MapIdentityEndpoints();
 app.MapAbsenceEndpoints();
@@ -186,6 +269,31 @@ app.MapWorkAssignmentEndpoints();
 app.MapCheckpointEndpoints();
 app.MapReportingEndpoints();
 app.MapAuditEndpoints();
+app.MapFallback(async context =>
+{
+    var requestPath = context.Request.Path;
+    if ((!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)) ||
+        requestPath.StartsWithSegments("/api") ||
+        requestPath.StartsWithSegments("/health") ||
+        Path.HasExtension(requestPath.Value ?? string.Empty))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    var webRootPath = app.Environment.WebRootPath;
+    var indexPath = string.IsNullOrWhiteSpace(webRootPath)
+        ? null
+        : Path.Combine(webRootPath, "index.html");
+    if (indexPath is null || !File.Exists(indexPath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(indexPath);
+}).ExcludeFromDescription();
 
 app.Run();
 

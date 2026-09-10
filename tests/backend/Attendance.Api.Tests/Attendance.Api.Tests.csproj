@@ -25,4 +25,10 @@
     <ProjectReference Include="..\..\..\src\tools\Attendance.LegacyImporter\Attendance.LegacyImporter.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestAssets\spa\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

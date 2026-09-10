@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>64969276-6392-4758-8dd2-2fe342152506</UserSecretsId>
+    <FrontendDistDir Condition="'$(FrontendDistDir)' == ''">$(MSBuildThisFileDirectory)..\..\frontend\attendance-web\dist</FrontendDistDir>
+    <FrontendDistDir>$([MSBuild]::EnsureTrailingSlash('$(FrontendDistDir)'))</FrontendDistDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,5 +23,19 @@
     <PackageReference Include="PDFsharp" Version="6.2.4" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
   </ItemGroup>
+
+  <Target Name="IncludeFrontendAssetsInPublish"
+          AfterTargets="ComputeResolvedFilesToPublishList">
+    <Error Condition="!Exists('$(FrontendDistDir)index.html')"
+           Text="The frontend build was not found at '$(FrontendDistDir)'. Run npm ci and npm run build in src/frontend/attendance-web before publishing." />
+    <ItemGroup>
+      <_FrontendAsset Include="$(FrontendDistDir)**\*" />
+      <ResolvedFileToPublish Include="@(_FrontendAsset)">
+        <RelativePath>wwwroot\%(_FrontendAsset.RecursiveDir)%(_FrontendAsset.Filename)%(_FrontendAsset.Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
 </Project>

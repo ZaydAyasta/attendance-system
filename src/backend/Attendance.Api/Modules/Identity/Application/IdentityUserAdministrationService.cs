@@ -33,6 +33,7 @@ public sealed class IdentityUserAdministrationService(
             return (null, error);
         }
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
@@ -51,6 +52,7 @@ public sealed class IdentityUserAdministrationService(
         {
             return (null, "No fue posible asignar el rol.");
         }
+        await transaction.CommitAsync();
         return (ToResponse(user, request.Role, await GetEmployeeAsync(user.EmployeeId)), null);
     }
 
@@ -71,6 +73,7 @@ public sealed class IdentityUserAdministrationService(
         if (oldRoles.Contains(IdentityRoles.Admin) && request.Role != IdentityRoles.Admin && await IsLastActiveAdminAsync(user.Id))
             return (null, "No se puede quitar el rol Administrador a la última cuenta Administrador activa.");
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
         user.UserName = request.Username.Trim();
         user.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
         var update = await userManager.UpdateAsync(user);
@@ -79,18 +82,16 @@ public sealed class IdentityUserAdministrationService(
             return (null, ToFriendlyError(update.Errors));
         }
 
-        if (!oldRoles.Contains(request.Role))
+        if (oldRoles.Count > 0)
         {
-            var add = await userManager.AddToRoleAsync(user, request.Role);
-            if (!add.Succeeded) return (null, "No fue posible actualizar el rol.");
-            var obsoleteRoles = oldRoles.Where(x => x != request.Role).ToArray();
-            if (obsoleteRoles.Length > 0)
-            {
-                var remove = await userManager.RemoveFromRolesAsync(user, obsoleteRoles);
-                if (!remove.Succeeded) return (null, "No fue posible actualizar el rol.");
-            }
+            var remove = await userManager.RemoveFromRolesAsync(user, oldRoles);
+            if (!remove.Succeeded) return (null, "No fue posible actualizar el rol.");
         }
-        await userManager.UpdateSecurityStampAsync(user);
+        var add = await userManager.AddToRoleAsync(user, request.Role);
+        if (!add.Succeeded) return (null, "No fue posible actualizar el rol.");
+        var securityStamp = await userManager.UpdateSecurityStampAsync(user);
+        if (!securityStamp.Succeeded) return (null, "No fue posible actualizar la sesión de la cuenta.");
+        await transaction.CommitAsync();
         return (ToResponse(user, request.Role, await GetEmployeeAsync(user.EmployeeId)), null);
     }
 
@@ -106,11 +107,14 @@ public sealed class IdentityUserAdministrationService(
         if (!isActive && roles.Contains(IdentityRoles.Admin) && await IsLastActiveAdminAsync(user.Id))
             return (null, "No se puede desactivar la última cuenta Administrador activa.");
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
         user.LockoutEnabled = true;
         user.LockoutEnd = isActive ? null : DateTimeOffset.MaxValue;
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded) return (null, "No fue posible actualizar el estado de la cuenta.");
-        await userManager.UpdateSecurityStampAsync(user);
+        var securityStamp = await userManager.UpdateSecurityStampAsync(user);
+        if (!securityStamp.Succeeded) return (null, "No fue posible actualizar la sesión de la cuenta.");
+        await transaction.CommitAsync();
         return (ToResponse(user, roles.SingleOrDefault() ?? string.Empty, await GetEmployeeAsync(user.EmployeeId)), null);
     }
 
@@ -119,9 +123,14 @@ public sealed class IdentityUserAdministrationService(
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null) return "User not found.";
         if (string.IsNullOrWhiteSpace(password)) return "La contraseña no cumple los requisitos.";
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         var result = await userManager.ResetPasswordAsync(user, token, password);
-        return result.Succeeded ? null : ToFriendlyError(result.Errors);
+        if (!result.Succeeded) return ToFriendlyError(result.Errors);
+        var securityStamp = await userManager.UpdateSecurityStampAsync(user);
+        if (!securityStamp.Succeeded) return "No fue posible actualizar la sesión de la cuenta.";
+        await transaction.CommitAsync();
+        return null;
     }
 
     private async Task<string?> ValidateAsync(string username, string? email, string role, Guid? employeeId, Guid? currentUserId = null)

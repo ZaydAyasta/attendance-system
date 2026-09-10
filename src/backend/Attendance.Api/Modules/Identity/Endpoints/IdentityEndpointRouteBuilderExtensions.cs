@@ -18,6 +18,7 @@ public static class IdentityEndpointRouteBuilderExtensions
         auth.MapGet("/csrf", GetCsrfTokenAsync).AllowAnonymous()
             .WithName("GetAntiforgeryToken").WithSummary("Get antiforgery token");
         auth.MapPost("/login", LoginAsync).AllowAnonymous().WithMetadata(new RequireAntiforgeryTokenAttribute(true))
+            .RequireRateLimiting("login")
             .WithName("Login").WithSummary("Sign in with username or email")
             .Accepts<LoginRequest>("application/json").Produces<CurrentUserResponse>()
             .Produces(StatusCodes.Status401Unauthorized);

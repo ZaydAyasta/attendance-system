@@ -19,7 +19,9 @@ async function submit(): Promise<void> {
   } catch (exception) {
     error.value = axios.isAxiosError(exception) && exception.response?.status === 401
       ? 'Usuario o contraseña incorrectos.'
-      : 'No pudimos iniciar sesión. Inténtalo nuevamente.'
+      : axios.isAxiosError(exception) && exception.response?.status === 429
+        ? 'Demasiados intentos. Espera un minuto antes de volver a intentarlo.'
+        : 'No pudimos iniciar sesión. Inténtalo nuevamente.'
   }
 }
 </script>

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Identity;
 
 namespace Attendance.Api.Tests.Infrastructure;
 
@@ -24,6 +25,8 @@ public sealed class IdentityApiFactory(string connectionString) : WebApplication
             services.Remove(descriptor);
             services.AddDbContext<AttendanceDbContext>((serviceProvider, options) => options.UseNpgsql(connectionString)
                 .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
+            services.PostConfigure<SecurityStampValidatorOptions>(options =>
+                options.ValidationInterval = TimeSpan.Zero);
         });
     }
 }

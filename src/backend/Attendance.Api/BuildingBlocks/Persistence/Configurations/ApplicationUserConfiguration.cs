@@ -10,7 +10,10 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
     public void Configure(EntityTypeBuilder<ApplicationUser> builder)
     {
         builder.Property(x => x.EmployeeId).HasColumnName("employee_id");
-        builder.HasIndex(x => x.EmployeeId);
+        builder.HasIndex(x => x.EmployeeId).IsUnique();
+        builder.HasIndex(x => x.NormalizedEmail)
+            .HasDatabaseName("EmailIndex")
+            .IsUnique();
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(x => x.EmployeeId)

@@ -17,6 +17,7 @@ obj/
 node_modules/
 dist/
 dist-ssr/
+artifacts/
 *.tsbuildinfo
 *.local
 

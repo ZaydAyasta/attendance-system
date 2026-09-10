@@ -120,7 +120,7 @@ dotnet user-secrets set "Identity:SeedUsers:IT:Password" "<strong-password>" --p
 
 Al iniciar la API en Development se crean únicamente las cuentas configuradas que
 no existan. En producción usa secretos externos, HTTPS obligatorio, cookies Secure,
-una base Identity propia con mínimo privilegio y no expongas Scalar fuera de Development.
+HSTS, una base Identity propia con mínimo privilegio y no expongas Scalar fuera de Development.
 Las políticas backend son la fuente de autorización: Admin gestiona módulos de negocio,
 User sólo consume `/api/me/attendance` y `/api/me/absences`, e IT sólo accede a áreas técnicas.
 
@@ -145,11 +145,53 @@ elimina la cookie. Desactivar una cuenta, cambiar su rol o restablecer su
 contraseña actualiza su `SecurityStamp`; las cookies se revalidan como máximo
 cada cinco minutos.
 
-Para el primer administrador de producción, provisiona temporalmente las claves
-`Identity:SeedUsers:Admin:Username` y `Identity:SeedUsers:Admin:Password` en el
-gestor de secretos de producción, inicia la aplicación una vez y retira esas
-claves. Nunca uses una contraseña por defecto ni las incluyas en código,
-Bruno o documentación versionada.
+Para que una cookie persistente sobreviva reinicios, en producción configura
+`DataProtection:KeysDirectory` como una carpeta persistente y con ACLs de uso
+exclusivo para la identidad que ejecuta la API. La aplicación usa DPAPI para
+cifrar esas claves en Windows y se niega a iniciar en producción si falta la
+ruta o si el sistema operativo no cuenta con un proveedor aprobado. Si se
+despliega en Linux, configura antes un proveedor compartido y cifrado de Data
+Protection; no copies claves manualmente ni uses almacenamiento temporal.
+
+Para crear el primer administrador en producción, usa el bootstrap explícito una
+única vez. En el gestor de secretos de producción provisiona
+`Identity:BootstrapAdmin:Enabled=true`,
+`Identity:BootstrapAdmin:Username` y `Identity:BootstrapAdmin:Password`; inicia
+la aplicación, verifica el acceso de la cuenta y elimina las tres claves antes
+del siguiente reinicio. El bootstrap sólo se ejecuta en el entorno `Production`,
+no sustituye una cuenta existente y no tiene credenciales por defecto. Nunca
+incluyas contraseñas en código, Bruno o documentación versionada.
+
+Antes de aplicar la migration `HardenIdentityUserConstraints` en una base ya
+usada, revisa y corrige cualquier duplicado de `employee_id` no nulo o de
+`NormalizedEmail` no nulo en `AspNetUsers`. La migration convierte ambos índices
+en únicos para que la asociación empleado-cuenta y el correo sean invariantes de
+PostgreSQL, incluso ante solicitudes simultáneas; si existen duplicados, debe
+fallar en lugar de escoger una cuenta arbitrariamente.
+
+## Despliegue y salud
+
+Antes de desplegar, realiza una copia de seguridad, ejecuta las migrations en
+una ventana de mantenimiento y verifica la aplicación con:
+
+- `GET /health/live`: el proceso puede responder.
+- `GET /health/ready`: PostgreSQL está disponible para la aplicación.
+
+Ambas rutas son anónimas para que el orquestador o balanceador pueda sondearlas;
+no incluyen errores de conexión ni secretos en la respuesta. Configura el
+monitor de disponibilidad contra `/health/ready` y el de reinicio del proceso
+contra `/health/live`.
+
+El inicio de sesión limita a diez intentos por minuto por dirección IP, sin cola.
+La protección de lockout de ASP.NET Core Identity se mantiene como segunda capa
+por cuenta. Cuando se supera ese límite, la API devuelve `429` y la interfaz
+indica esperar un minuto. En producción las excepciones no controladas se devuelven como
+Problem Details genérico y no incluyen trazas o secretos.
+
+La publicación de Release incorpora la SPA compilada en `wwwroot`, por lo que la
+API y la interfaz se entregan bajo el mismo origen. En producción `AllowedHosts`
+debe indicar el nombre DNS real; la aplicación no inicia si permanece en `*`.
+Consulta el procedimiento completo en `docs/production-release.md`.
 
 ## Attendance Capture
 
@@ -184,6 +226,11 @@ dotnet ef migrations add <MigrationName> --project src/backend/Attendance.Api
 ```
 
 ## Tests
+
+Cada pull request y cambio a `master` ejecuta GitHub Actions con .NET 10.0.302,
+Node 24, pruebas de backend —incluidas las de Testcontainers/PostgreSQL en el
+runner Linux— y pruebas/build de frontend. Ningún despliegue debe partir de un
+cambio que no tenga esas verificaciones correctas.
 
 ### Backend
 
