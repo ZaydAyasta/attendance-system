@@ -16,13 +16,17 @@ public sealed class IdentityApiFactory(string connectionString) : WebApplication
     public HttpClient CreateHttpsClient()
         => CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = HttpsBaseAddress,
             HandleCookies = true
         });
 
+    public new HttpClient CreateClient()
+        => CreateHttpsClient();
+
     public new HttpClient CreateClient(WebApplicationFactoryClientOptions options)
     {
-        options.BaseAddress ??= HttpsBaseAddress;
+        // WebApplicationFactoryClientOptions defaults to http://localhost. Test cookies
+        // use Secure=Always, so every client must explicitly target HTTPS.
+        options.BaseAddress = HttpsBaseAddress;
         return base.CreateClient(options);
     }
 
