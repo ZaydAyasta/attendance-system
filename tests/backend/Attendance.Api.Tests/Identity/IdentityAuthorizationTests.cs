@@ -91,7 +91,7 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
         await using var scope = factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
-        using var client = factory.CreateHttpsClient();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
 
         var login = await LoginAsync(client, "admin", "Password1");
 
