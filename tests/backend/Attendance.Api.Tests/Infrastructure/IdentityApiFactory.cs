@@ -11,6 +11,21 @@ namespace Attendance.Api.Tests.Infrastructure;
 
 public sealed class IdentityApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
+    private static readonly Uri HttpsBaseAddress = new("https://localhost");
+
+    public HttpClient CreateHttpsClient()
+        => CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = HttpsBaseAddress,
+            HandleCookies = true
+        });
+
+    public new HttpClient CreateClient(WebApplicationFactoryClientOptions options)
+    {
+        options.BaseAddress ??= HttpsBaseAddress;
+        return base.CreateClient(options);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");

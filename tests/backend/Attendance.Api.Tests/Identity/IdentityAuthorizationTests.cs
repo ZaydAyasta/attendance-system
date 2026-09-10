@@ -84,6 +84,28 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
     }
 
     [RequiresContainerRuntimeFact]
+    public async Task Login_preserves_the_secure_authentication_cookie_over_https()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var client = factory.CreateHttpsClient();
+
+        var login = await LoginAsync(client, "admin", "Password1");
+
+        Assert.Equal(Uri.UriSchemeHttps, client.BaseAddress?.Scheme);
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var authCookie = login.Headers.GetValues("Set-Cookie")
+            .Single(value => value.StartsWith("attendance.auth=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("secure", authCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("httponly", authCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=lax", authCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/me")).StatusCode);
+    }
+
+    [RequiresContainerRuntimeFact]
     public async Task Creating_user_requires_employee_and_prevents_duplicate_employee_account()
     {
         await fixture.ResetAsync();
@@ -128,7 +150,8 @@ public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixtu
 
         using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
         Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(factory.CreateClient(), "disabled", "Password1")).StatusCode);
+        using var disabledClient = factory.CreateHttpsClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(disabledClient, "disabled", "Password1")).StatusCode);
         var me = await admin.GetFromJsonAsync<CurrentUserResponse>("/api/me");
         Assert.NotNull(me);
         var selfDisable = await SendWithCsrfAsync(admin, HttpMethod.Put, $"/api/identity/users/{me!.Id}/status", new SetIdentityUserStatusRequest(false));
