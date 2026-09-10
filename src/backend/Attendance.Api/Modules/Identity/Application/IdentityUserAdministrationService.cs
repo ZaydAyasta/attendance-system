@@ -91,8 +91,8 @@ public sealed class IdentityUserAdministrationService(
         }
         var add = await userManager.AddToRoleAsync(user, request.Role);
         if (!add.Succeeded) return (null, "No fue posible actualizar el rol.");
-        var securityStamp = await userManager.UpdateSecurityStampAsync(user);
-        if (!securityStamp.Succeeded) return (null, "No fue posible actualizar la sesión de la cuenta.");
+        // Preserve the stamp so SecurityStampValidator can renew existing sessions
+        // with the new role claims instead of rejecting their current cookies.
         await transaction.CommitAsync();
         return (ToResponse(user, request.Role, await GetEmployeeAsync(user.EmployeeId)), null);
     }
