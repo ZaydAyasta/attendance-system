@@ -145,13 +145,12 @@ elimina la cookie. Desactivar una cuenta, cambiar su rol o restablecer su
 contraseña actualiza su `SecurityStamp`; las cookies se revalidan como máximo
 cada cinco minutos.
 
-Para que una cookie persistente sobreviva reinicios, en producción configura
-`DataProtection:KeysDirectory` como una carpeta persistente y con ACLs de uso
-exclusivo para la identidad que ejecuta la API. La aplicación usa DPAPI para
-cifrar esas claves en Windows y se niega a iniciar en producción si falta la
-ruta o si el sistema operativo no cuenta con un proveedor aprobado. Si se
-despliega en Linux, configura antes un proveedor compartido y cifrado de Data
-Protection; no copies claves manualmente ni uses almacenamiento temporal.
+Para que una cookie persistente sobreviva reinicios, las claves de Data
+Protection se persisten en PostgreSQL en la tabla `DataProtectionKeys`, mediante
+una migration aditiva. Esa base y sus backups deben tratarse como secretos; no
+copies claves manualmente ni uses filesystem efímero. Esta configuración es apta
+para el contenedor Linux de Railway y mantiene el mismo `ApplicationName` entre
+deploys.
 
 Para crear el primer administrador en producción, usa el bootstrap explícito una
 única vez. En el gestor de secretos de producción provisiona
@@ -191,7 +190,8 @@ Problem Details genérico y no incluyen trazas o secretos.
 La publicación de Release incorpora la SPA compilada en `wwwroot`, por lo que la
 API y la interfaz se entregan bajo el mismo origen. En producción `AllowedHosts`
 debe indicar el nombre DNS real; la aplicación no inicia si permanece en `*`.
-Consulta el procedimiento completo en `docs/production-release.md`.
+El procedimiento Railway —variables, migrations, backups, restore, smoke,
+rollback y go-live— está en `docs/production-release.md`.
 
 ## Attendance Capture
 

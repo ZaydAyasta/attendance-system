@@ -62,6 +62,9 @@ try {
     $unknownApi = Assert-Status -Method ([System.Net.Http.HttpMethod]::Get) -Path '/api/not-a-real-endpoint' -ExpectedStatus 404
     $unknownApi.Dispose()
 
+    $unknownAsset = Assert-Status -Method ([System.Net.Http.HttpMethod]::Get) -Path '/assets/not-a-real-asset.js' -ExpectedStatus 404
+    $unknownAsset.Dispose()
+
     $unknownMutation = Assert-Status -Method ([System.Net.Http.HttpMethod]::Post) -Path '/not-a-real-endpoint' -ExpectedStatus 404
     $unknownMutation.Dispose()
 }

@@ -9,6 +9,7 @@ using Attendance.Api.Modules.LegacyMigration.Domain;
 using Attendance.Api.Modules.Auditing.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.BuildingBlocks.Persistence;
@@ -19,8 +20,9 @@ namespace Attendance.Api.BuildingBlocks.Persistence;
 /// </summary>
 public sealed class AttendanceDbContext(
     DbContextOptions<AttendanceDbContext> options)
-    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IDataProtectionKeyContext
 {
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
     public DbSet<Employee> Employees => Set<Employee>();
 
     public DbSet<WorkCalendarDay> WorkCalendarDays =>
@@ -44,6 +46,13 @@ public sealed class AttendanceDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<DataProtectionKey>(entity =>
+        {
+            entity.ToTable("DataProtectionKeys");
+            entity.HasKey(key => key.Id);
+            entity.Property(key => key.FriendlyName).IsRequired();
+            entity.Property(key => key.Xml).IsRequired();
+        });
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(AttendanceDbContext).Assembly);
     }

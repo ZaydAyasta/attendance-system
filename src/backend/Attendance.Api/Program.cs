@@ -23,6 +23,8 @@ using Attendance.Api.Modules.Auditing.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -52,27 +54,6 @@ if (builder.Environment.IsProduction())
     }
 }
 
-var dataProtection = builder.Services.AddDataProtection()
-    .SetApplicationName("AttendanceSystem");
-if (builder.Environment.IsProduction())
-{
-    var keysDirectory = builder.Configuration["DataProtection:KeysDirectory"];
-    if (string.IsNullOrWhiteSpace(keysDirectory))
-    {
-        throw new InvalidOperationException(
-            "DataProtection:KeysDirectory must point to a persistent, access-restricted directory in production.");
-    }
-    if (!OperatingSystem.IsWindows())
-    {
-        throw new InvalidOperationException(
-            "Production Data Protection requires an approved key-encryption provider on this operating system.");
-    }
-
-    var keyDirectory = Directory.CreateDirectory(keysDirectory);
-    dataProtection.PersistKeysToFileSystem(keyDirectory)
-        .ProtectKeysWithDpapi();
-}
-
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditOperationContext>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
@@ -84,6 +65,18 @@ builder.Services.AddDbContext<AttendanceDbContext>((serviceProvider, options) =>
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' was not found."))
         .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
+builder.Services.AddDataProtection()
+    .SetApplicationName("AttendanceSystem")
+    .PersistKeysToDbContext<AttendanceDbContext>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    // Railway is the only public ingress. Its proxy addresses are dynamic, so the
+    // trust boundary is the private container network rather than fixed IP ranges.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.Password.RequiredLength = 8;
@@ -240,6 +233,7 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsProduction())
 {
+    app.UseForwardedHeaders();
     app.UseHsts();
     app.UseExceptionHandler();
 }

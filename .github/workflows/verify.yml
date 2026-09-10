@@ -81,3 +81,4 @@ jobs:
       - run: dotnet restore AttendanceSystem.sln
       - run: dotnet publish src/backend/Attendance.Api/Attendance.Api.csproj --configuration Release --no-restore --output artifacts/attendance-release
       - run: test -f artifacts/attendance-release/wwwroot/index.html
+      - run: docker build --tag attendance-system:ci .
