@@ -1,8 +1,40 @@
 # Sistema de Asistencia
 
+<p>
+  <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white" alt=".NET 10" />
+  <img src="https://img.shields.io/badge/Vue.js-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+</p>
+
 ## Descripción
 
 Sistema de asistencia en evolución hacia una arquitectura modular con backend en ASP.NET Core y frontend en Vue.
+
+## Capturas
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/dashboard.jpg" alt="Dashboard administrativo" />
+      <p align="center"><b>Dashboard</b></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/attendance.jpg" alt="Control de asistencia" />
+      <p align="center"><b>Control de asistencia</b></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/reports.jpg" alt="Reportes de asistencia" />
+      <p align="center"><b>Reportes</b></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/users.jpg" alt="Administración de usuarios" />
+      <p align="center"><b>Administración</b></p>
+    </td>
+  </tr>
+</table>
 
 La aplicación nueva usa:
 
@@ -21,6 +53,105 @@ El sistema legacy de migración no es el destino de desarrollo ni de migrations 
   - `Work Assignments`
 - Frontend SPA en Vue
 - PostgreSQL para desarrollo local
+
+### Modelo de datos
+
+El siguiente diagrama ER resume las tablas de negocio y las relaciones de
+identidad que participan directamente en el sistema. Las tablas de soporte de
+ASP.NET Identity (claims, logins y tokens), las claves de protección de datos y
+los mapeos de migración legacy se mantienen fuera para conservar una lectura
+operativa del modelo.
+
+```mermaid
+erDiagram
+    EMPLOYEES {
+        uuid id PK
+        string employee_code UK
+        string first_name
+        string last_name
+        boolean is_active
+        date hire_date
+    }
+
+    ASPNET_USERS {
+        uuid id PK
+        uuid employee_id FK "unique, nullable"
+        string user_name UK
+        string email UK
+    }
+
+    ASPNET_ROLES {
+        uuid id PK
+        string name UK
+    }
+
+    ASPNET_USER_ROLES {
+        uuid user_id FK
+        uuid role_id FK
+    }
+
+    ATTENDANCE_MARKS {
+        uuid id PK
+        uuid employee_id FK
+        uuid checkpoint_id FK "nullable"
+        datetime occurred_at
+        string mark_type
+        string source
+    }
+
+    CHECKPOINTS {
+        uuid id PK
+        string code UK
+        string name
+        string checkpoint_type
+        boolean is_active
+    }
+
+    ABSENCES {
+        uuid id PK
+        uuid employee_id FK
+        date start_date
+        date end_date
+        string absence_type
+        string status
+    }
+
+    EMPLOYEE_WORK_ASSIGNMENTS {
+        uuid id PK
+        uuid employee_id FK
+        date date
+        string assignment_type
+        string status
+    }
+
+    WORK_CALENDAR_DAYS {
+        uuid id PK
+        date date UK
+        string day_type
+    }
+
+    AUDIT_EVENTS {
+        uuid id PK
+        string actor_user_id "logical reference"
+        string action
+        string entity_type
+        string entity_id
+        datetime occurred_at
+        jsonb metadata
+    }
+
+    EMPLOYEES o|--o| ASPNET_USERS : "account profile"
+    ASPNET_USERS ||--o{ ASPNET_USER_ROLES : "has"
+    ASPNET_ROLES ||--o{ ASPNET_USER_ROLES : "grants"
+    EMPLOYEES ||--o{ ATTENDANCE_MARKS : "records"
+    CHECKPOINTS o|--o{ ATTENDANCE_MARKS : "originates"
+    EMPLOYEES ||--o{ ABSENCES : "has"
+    EMPLOYEES ||--o{ EMPLOYEE_WORK_ASSIGNMENTS : "receives"
+```
+
+`audit_events` conserva el actor como referencia lógica, sin una clave foránea:
+esto permite mantener auditoría append-only aun si cambia el estado de una
+cuenta.
 
 ## Stack
 
