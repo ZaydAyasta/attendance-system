@@ -9,7 +9,36 @@
 
 ## Descripción
 
-Sistema de asistencia en evolución hacia una arquitectura modular con backend en ASP.NET Core y frontend en Vue.
+Sistema web para empresas que registra y administra la asistencia de sus
+empleados. Sustituye el control manual de entradas, salidas y pausas por
+marcaciones digitales realizadas desde puntos físicos de la organización.
+
+### ¿Qué hace?
+
+Un empleado autenticado escanea un código QR dinámico en un checkpoint, por
+ejemplo `EntryExit` o `Cafeteria`. El sistema identifica el punto de marcación,
+evalúa el estado de la jornada y registra únicamente la acción que corresponde:
+entrada, salida, inicio de almuerzo o fin de almuerzo.
+
+El personal administrativo ve y gestiona la información operativa desde una
+misma aplicación: asistencia diaria, ausencias, calendario laboral,
+asignaciones especiales, cuentas de usuario y reportes.
+
+### Funcionalidades principales
+
+- Marcación de entrada, salida e inicio/fin de almuerzo mediante checkpoints y QR dinámicos firmados.
+- Consulta de horas trabajadas, estados diarios y anomalías de asistencia.
+- Gestión de empleados, ausencias, permisos e incidencias.
+- Calendario laboral con días laborables, no laborables y feriados.
+- Asignaciones excepcionales por empleado y fecha.
+- Cuentas con roles `Admin`, `User` e `IT`.
+- Gestión técnica de checkpoints por el rol `IT`.
+- Reportes de asistencia por período y empleado, con exportación a Excel y PDF.
+- Auditoría append-only de acciones administrativas relevantes.
+
+> El sistema puede desplegarse en una intranet corporativa. La versión actual
+> no implementa geolocalización ni una restricción de acceso basada en la red
+> de la empresa.
 
 ## Capturas
 
@@ -409,6 +438,10 @@ es bajo y aún no hay una política automática de retención o purga.
 ## Documentación adicional
 
 - Reglas de negocio de evaluación diaria: `docs/attendance-evaluation-rules.md`
+
+## Licencia
+
+Este proyecto se distribuye bajo la [licencia MIT](LICENSE).
 
 ## Nota sobre legacy
 
