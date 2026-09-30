@@ -174,6 +174,14 @@ builder.Services.AddOpenApi("v1", options =>
 
 var app = builder.Build();
 
+if (app.Environment.IsProduction() && builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+{
+    app.Logger.LogInformation("Applying pending database migrations during the explicitly enabled production bootstrap.");
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var dbContext = migrationScope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 var skipIdentityInitialization = app.Environment.IsEnvironment("Testing") &&
     app.Configuration.GetValue<bool>("Testing:SkipIdentityInitialization");
 if (!skipIdentityInitialization)

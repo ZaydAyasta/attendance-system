@@ -39,6 +39,7 @@ Valores que se guardan como secretos/variables, nunca en Git:
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `ConnectionStrings__DefaultConnection` | conexión de usuario PostgreSQL con mínimo privilegio |
 | `AllowedHosts` | host Railway y, si aplica, host personalizado |
+| `Database__ApplyMigrationsOnStartup` | sólo `true` para el bootstrap controlado de una base nueva; mantener `false` después |
 | `Identity__BootstrapAdmin__Enabled` | sólo `true` durante el bootstrap inicial |
 | `Identity__BootstrapAdmin__Username` | administrador inicial temporal |
 | `Identity__BootstrapAdmin__Password` | contraseña fuerte temporal |
@@ -58,9 +59,9 @@ producción; no se implementó criptografía propia.
 
 ## Migraciones y primer administrador
 
-Nunca se aplican migraciones automáticamente al arrancar la aplicación. En una
-ventana de mantenimiento, desde una estación segura con la cadena de producción
-configurada sólo para ese proceso:
+Por defecto, las migraciones no se aplican automáticamente al arrancar la
+aplicación. En una ventana de mantenimiento, desde una estación segura con la
+cadena de producción configurada sólo para ese proceso:
 
 1. Confirma host y nombre de base: debe ser la base PostgreSQL de producción de
    Railway, nunca `attendance_dev` ni la base legacy.
@@ -71,6 +72,13 @@ configurada sólo para ese proceso:
    --configuration Release`.
 5. Arranca/despliega y verifica `/health/ready`, incluidos los roles y la tabla
    `DataProtectionKeys`.
+
+Para el bootstrap inicial de una base Railway nueva, se permite definir
+temporalmente `Database__ApplyMigrationsOnStartup=true` y desplegar con una sola
+réplica. La aplicación ejecutará `MigrateAsync` antes de crear los roles. Tras
+una ejecución correcta, cambia la variable a `false` y vuelve a desplegar. Este
+interruptor no sustituye el backup ni el procedimiento manual para migraciones
+posteriores.
 
 Para la primera cuenta, provisiona temporalmente las tres variables
 `Identity__BootstrapAdmin__*`, despliega, inicia sesión y elimínalas antes del
