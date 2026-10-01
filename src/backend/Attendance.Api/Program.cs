@@ -278,7 +278,18 @@ app.MapReportingEndpoints();
 app.MapAuditEndpoints();
 if (app.Configuration.GetValue<bool>("LegacyImport:Enabled"))
 {
-    app.MapLegacyProductionImportEndpoints();
+    await using var legacyImportScope = app.Services.CreateAsyncScope();
+    var legacyImportDbContext = legacyImportScope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
+    var importAlreadyCompleted = await legacyImportDbContext.LegacyImportMappings
+        .AnyAsync(mapping => mapping.SourceSystem == "legacy-supabase-excel-v1");
+    if (!importAlreadyCompleted)
+    {
+        app.MapLegacyProductionImportEndpoints();
+    }
+    else
+    {
+        app.Logger.LogWarning("The one-time legacy import endpoint was not mapped because its import has already completed.");
+    }
 }
 app.MapFallback(async context =>
 {
