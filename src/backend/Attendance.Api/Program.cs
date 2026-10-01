@@ -252,7 +252,11 @@ if (app.Environment.IsProduction())
 
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
-    app.UseHttpsRedirection();
+    // Railway probes the container over its private HTTP network. Public requests
+    // still arrive as HTTPS through the Railway proxy and are covered by HSTS.
+    app.UseWhen(
+        context => !context.Request.Path.StartsWithSegments("/health"),
+        branch => branch.UseHttpsRedirection());
 }
 
 app.UseDefaultFiles();
