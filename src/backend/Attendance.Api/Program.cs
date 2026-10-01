@@ -31,6 +31,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
+using Npgsql;
 using Scalar.AspNetCore;
 using PdfSharp.Fonts;
 using System.Threading.RateLimiting;
@@ -63,9 +64,7 @@ builder.Services.AddScoped<IAuditWriter, AuditWriter>();
 builder.Services.AddScoped<AuditQueryService>();
 builder.Services.AddDbContext<AttendanceDbContext>((serviceProvider, options) =>
     options.UseNpgsql(
-            serviceProvider.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException(
-                "Connection string 'DefaultConnection' was not found."))
+            GetPostgresConnectionString(serviceProvider.GetRequiredService<IConfiguration>()))
         .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
 builder.Services.AddDataProtection()
     .SetApplicationName("AttendanceSystem")
@@ -318,6 +317,35 @@ app.MapFallback(async context =>
 }).ExcludeFromDescription();
 
 app.Run();
+
+static string GetPostgresConnectionString(IConfiguration configuration)
+{
+    var configuredConnectionString = configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
+
+    if (!Uri.TryCreate(configuredConnectionString, UriKind.Absolute, out var databaseUri) ||
+        (!databaseUri.Scheme.Equals("postgres", StringComparison.OrdinalIgnoreCase) &&
+         !databaseUri.Scheme.Equals("postgresql", StringComparison.OrdinalIgnoreCase)))
+    {
+        return configuredConnectionString;
+    }
+
+    var userInfo = databaseUri.UserInfo.Split(':', 2);
+    if (userInfo.Length != 2 || string.IsNullOrWhiteSpace(databaseUri.Host) ||
+        string.IsNullOrWhiteSpace(databaseUri.AbsolutePath.Trim('/')))
+    {
+        throw new InvalidOperationException("The PostgreSQL connection URL is incomplete.");
+    }
+
+    return new NpgsqlConnectionStringBuilder
+    {
+        Host = databaseUri.Host,
+        Port = databaseUri.IsDefaultPort ? 5432 : databaseUri.Port,
+        Database = Uri.UnescapeDataString(databaseUri.AbsolutePath.Trim('/')),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = Uri.UnescapeDataString(userInfo[1])
+    }.ConnectionString;
+}
 
 static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
 {
