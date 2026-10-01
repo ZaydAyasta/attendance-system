@@ -20,6 +20,8 @@ using Attendance.Api.Modules.Reporting.Application;
 using Attendance.Api.Modules.Reporting.Endpoints;
 using Attendance.Api.Modules.Auditing.Application;
 using Attendance.Api.Modules.Auditing.Endpoints;
+using Attendance.Api.Modules.LegacyMigration.Application;
+using Attendance.Api.Modules.LegacyMigration.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.DataProtection;
@@ -152,6 +154,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddScoped<IdentitySessionService>();
 builder.Services.AddScoped<IdentityUserAdministrationService>();
 builder.Services.AddScoped<ProductionAdminBootstrapService>();
+builder.Services.AddLegacyMigrationModule();
 builder.Services.AddAbsencesModule();
 builder.Services.AddEmployeesModule();
 builder.Services.AddAttendanceModule(builder.Configuration);
@@ -273,6 +276,10 @@ app.MapWorkAssignmentEndpoints();
 app.MapCheckpointEndpoints();
 app.MapReportingEndpoints();
 app.MapAuditEndpoints();
+if (app.Configuration.GetValue<bool>("LegacyImport:Enabled"))
+{
+    app.MapLegacyProductionImportEndpoints();
+}
 app.MapFallback(async context =>
 {
     var requestPath = context.Request.Path;

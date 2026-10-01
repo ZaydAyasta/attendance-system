@@ -1,6 +1,8 @@
 using Attendance.Api.BuildingBlocks.Persistence;
+using Attendance.Api.Modules.LegacyMigration.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Text.Json;
 
 namespace Attendance.LegacyImporter;
 
@@ -11,9 +13,9 @@ public static class LegacyImporterProgram
         TextWriter output,
         CancellationToken cancellationToken)
     {
-        if (!TryParse(args, out var command, out var excelPath, out var apply))
+        if (!TryParse(args, out var command, out var excelPath, out var apply, out var excludedNames, out var excludedEmployeeCodes, out var outputPath))
         {
-            await output.WriteLineAsync("Usage: Attendance.LegacyImporter <inspect|diagnose|dry-run|import|verify> --excel <file-or-folder> [--apply]");
+            await output.WriteLineAsync("Usage: Attendance.LegacyImporter <inspect|diagnose|dry-run|export-payload|import|verify> --excel <file-or-folder> [--exclude-employee <full-name>] [--exclude-employee-code <code>] [--output <file>] [--apply]");
             return 64;
         }
 
@@ -53,7 +55,29 @@ public static class LegacyImporterProgram
         }
 
         var sourceRows = await new LegacyEmployeeSourceReader().ReadAsync(source, cancellationToken);
+        if (excludedEmployeeCodes.Count > 0)
+        {
+            var originalCount = sourceRows.Count;
+            sourceRows = sourceRows
+                .Where(row => !excludedEmployeeCodes.Contains(row.EmployeeCode.Trim()))
+                .ToArray();
+            var excludedCount = originalCount - sourceRows.Count;
+            if (excludedCount > 0)
+            {
+                await output.WriteLineAsync($"Excluded {excludedCount} employee configured by operator.");
+            }
+        }
         var (excelMarks, validation) = new LegacyExcelReader().Read(excelPath);
+        if (excludedNames.Count > 0)
+        {
+            var originalCount = excelMarks.Count;
+            excelMarks = excelMarks.Where(mark => !excludedNames.Contains(mark.NormalizedEmployeeName)).ToArray();
+            var excludedCount = originalCount - excelMarks.Count;
+            if (excludedCount > 0)
+            {
+                validation.Warnings.Add($"Excluded {excludedCount} attendance marks configured by operator.");
+            }
+        }
         if (command == "diagnose")
         {
             foreach (var mismatch in LegacyMismatchDiagnostics.Find(sourceRows, excelMarks))
@@ -69,7 +93,26 @@ public static class LegacyImporterProgram
         var plan = new LegacyImportPlanner().CreatePlan(sourceRows, excelMarks, validation);
         await WritePlanAsync(output, command, plan);
         if (!plan.Validation.IsValid) return 2;
-        if (command == "import")
+        if (command == "export-payload")
+        {
+            var payload = new LegacyProductionImportRequest(
+                plan.Employees.Select(employee => new LegacyProductionImportEmployee(
+                    employee.EmployeeCode,
+                    employee.FirstName,
+                    employee.LastName,
+                    employee.HireDate)).ToArray(),
+                plan.Marks.Select(mark => new LegacyProductionImportMark(
+                    mark.Employee.EmployeeCode,
+                    mark.OccurredAt,
+                    mark.Source.Type.ToString(),
+                    mark.LegacyId)).ToArray());
+            await File.WriteAllTextAsync(
+                outputPath,
+                JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                cancellationToken);
+            await output.WriteLineAsync($"Legacy import payload written to: {Path.GetFullPath(outputPath)}");
+        }
+        else if (command == "import")
         {
             var options = new DbContextOptionsBuilder<AttendanceDbContext>().UseNpgsql(settings.DestinationConnectionString).Options;
             var result = await new LegacyDestinationImporter(options).ApplyAsync(plan, cancellationToken);
@@ -86,15 +129,37 @@ public static class LegacyImporterProgram
         return 0;
     }
 
-    private static bool TryParse(string[] args, out string command, out string excelPath, out bool apply)
+    private static bool TryParse(
+        string[] args,
+        out string command,
+        out string excelPath,
+        out bool apply,
+        out IReadOnlySet<string> excludedNames,
+        out IReadOnlySet<string> excludedEmployeeCodes,
+        out string outputPath)
     {
         command = args.FirstOrDefault()?.ToLowerInvariant() ?? string.Empty;
         apply = args.Contains("--apply", StringComparer.OrdinalIgnoreCase);
         var index = Array.FindIndex(args, item => string.Equals(item, "--excel", StringComparison.OrdinalIgnoreCase));
         excelPath = index >= 0 && index + 1 < args.Length ? args[index + 1] : string.Empty;
-        return new[] { "inspect", "diagnose", "dry-run", "import", "verify" }.Contains(command)
+        var outputIndex = Array.FindIndex(args, item => string.Equals(item, "--output", StringComparison.OrdinalIgnoreCase));
+        outputPath = outputIndex >= 0 && outputIndex + 1 < args.Length ? args[outputIndex + 1] : string.Empty;
+        excludedNames = args
+            .Select((value, position) => new { value, position })
+            .Where(item => string.Equals(item.value, "--exclude-employee", StringComparison.OrdinalIgnoreCase) && item.position + 1 < args.Length)
+            .Select(item => LegacyText.NormalizeName(args[item.position + 1]))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.Ordinal);
+        excludedEmployeeCodes = args
+            .Select((value, position) => new { value, position })
+            .Where(item => string.Equals(item.value, "--exclude-employee-code", StringComparison.OrdinalIgnoreCase) && item.position + 1 < args.Length)
+            .Select(item => args[item.position + 1].Trim())
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new[] { "inspect", "diagnose", "dry-run", "export-payload", "import", "verify" }.Contains(command)
             && !string.IsNullOrWhiteSpace(excelPath)
-            && ((command == "import" && apply) || (command != "import" && !apply));
+            && ((command == "import" && apply) || (command != "import" && !apply))
+            && (command != "export-payload" || !string.IsNullOrWhiteSpace(outputPath));
     }
 
     private static async Task WritePlanAsync(TextWriter output, string command, LegacyImportPlan plan)

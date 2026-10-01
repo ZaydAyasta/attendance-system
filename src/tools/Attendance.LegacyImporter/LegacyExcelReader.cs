@@ -50,11 +50,34 @@ public sealed class LegacyExcelReader
             return [];
         }
 
-        var files = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
+        var files = EnumerateFilesWithoutReparsePoints(path)
             .Where(file => !IsIgnored(file))
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return files.Where(file => ValidateExtension(file, validation)).ToArray();
+    }
+
+    private static IEnumerable<string> EnumerateFilesWithoutReparsePoints(string root)
+    {
+        var directories = new Stack<string>();
+        directories.Push(root);
+
+        while (directories.Count > 0)
+        {
+            var directory = directories.Pop();
+            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                yield return file;
+            }
+
+            foreach (var child in Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) == 0)
+                {
+                    directories.Push(child);
+                }
+            }
+        }
     }
 
     private static bool IsIgnored(string path) => Path.GetFileName(path).StartsWith("~$", StringComparison.Ordinal);
