@@ -62,7 +62,7 @@ public sealed class CheckpointService(AttendanceDbContext dbContext, CheckpointQ
     private void EnsureStaticQrToken(Checkpoint checkpoint)
     {
         if (checkpoint.QrMode == CheckpointQrMode.Static && string.IsNullOrWhiteSpace(checkpoint.StaticQrToken))
-            checkpoint.SetStaticQrToken(qrService.Protect(qrService.CreateStaticPayload(checkpoint.Id)));
+            checkpoint.SetStaticQrToken(qrService.CreateStaticToken(checkpoint.Id));
     }
     public static CheckpointResponse Map(Checkpoint checkpoint) => new(checkpoint.Id, checkpoint.Code, checkpoint.Name, checkpoint.Type.ToString(), checkpoint.IsActive, checkpoint.Version, checkpoint.QrMode.ToString());
 }

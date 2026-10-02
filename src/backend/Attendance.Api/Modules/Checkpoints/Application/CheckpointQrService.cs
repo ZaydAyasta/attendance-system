@@ -25,6 +25,17 @@ public sealed class CheckpointQrService(IDataProtectionProvider dataProtectionPr
     public CheckpointQrPayload CreateStaticPayload(Guid checkpointId)
         => new(checkpointId, Convert.ToHexString(RandomNumberGenerator.GetBytes(16)), DateTimeOffset.UnixEpoch, null, CheckpointQrMode.Static);
 
+    public string CreateStaticToken(Guid checkpointId) => $"s1:{checkpointId:N}";
+
+    public bool TryGetStaticCheckpointId(string? token, out Guid checkpointId)
+    {
+        checkpointId = Guid.Empty;
+        const string prefix = "s1:";
+        return token is { Length: 35 }
+            && token.StartsWith(prefix, StringComparison.Ordinal)
+            && Guid.TryParseExact(token[prefix.Length..], "N", out checkpointId);
+    }
+
     public string Protect(CheckpointQrPayload payload) => _protector.Protect(JsonSerializer.Serialize(payload));
 
     public CheckpointQrValidationResult Validate(string? token)

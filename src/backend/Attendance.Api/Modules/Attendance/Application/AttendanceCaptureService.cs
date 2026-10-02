@@ -18,13 +18,10 @@ public sealed class AttendanceCaptureService(
 {
     public async Task<AttendanceCaptureResult<AttendanceCaptureResolutionResponse>> ResolveAsync(Guid employeeId, string token, CancellationToken cancellationToken)
     {
-        var validation = qrService.Validate(token);
-        if (validation.Status != CheckpointQrValidationStatus.Valid)
-            return new(MapTokenStatus(validation.Status));
-
-        var checkpoint = await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
+        var checkpointResult = await ResolveCheckpointAsync(token, true, cancellationToken);
+        if (checkpointResult.Status is { } status) return new(status);
+        var checkpoint = checkpointResult.Checkpoint!;
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
-        if (checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
         var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
         var message = actions.Count == 0
             ? "No hay una marcación disponible para este checkpoint en este momento."
@@ -34,19 +31,17 @@ public sealed class AttendanceCaptureService(
 
     public async Task<AttendanceCaptureResult<AttendanceCaptureMarkResponse>> MarkAsync(Guid employeeId, string token, string action, CancellationToken cancellationToken)
     {
-        var validation = qrService.Validate(token);
-        if (validation.Status != CheckpointQrValidationStatus.Valid)
-            return new(MapTokenStatus(validation.Status));
         if (!Enum.TryParse<AttendanceMarkType>(action, true, out var requestedAction) || !Enum.IsDefined(requestedAction))
             return new(AttendanceCaptureStatus.InvalidAction, Message: "La acción solicitada no es válida.");
 
-        var checkpoint = await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
+        var checkpointResult = await ResolveCheckpointAsync(token, false, cancellationToken);
+        if (checkpointResult.Status is { } status) return new(status);
+        var checkpoint = checkpointResult.Checkpoint!;
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
-        if (checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
         var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
         if (!actions.Contains(requestedAction))
             return new(AttendanceCaptureStatus.InvalidAction, Message: "Esta marcación ya no es válida para la secuencia actual.");
-        if (!qrService.TryReserve(validation.Payload!, employeeId))
+        if (!qrService.TryReserve(checkpointResult.Payload!, employeeId))
             return new(AttendanceCaptureStatus.Replay, Message: "Este código QR ya fue usado para registrar una marcación.");
 
         try
@@ -58,7 +53,7 @@ public sealed class AttendanceCaptureService(
         }
         catch
         {
-            qrService.Release(validation.Payload!, employeeId);
+            qrService.Release(checkpointResult.Payload!, employeeId);
             throw;
         }
     }
@@ -89,6 +84,33 @@ public sealed class AttendanceCaptureService(
             .OrderBy(x => x.OccurredAt).ToListAsync(cancellationToken);
 
         return AttendanceCaptureSequence.Resolve(marks.Select(x => x.Type).ToArray(), checkpointType);
+    }
+
+    private async Task<ResolvedCheckpoint> ResolveCheckpointAsync(string token, bool asNoTracking, CancellationToken cancellationToken)
+    {
+        if (qrService.TryGetStaticCheckpointId(token, out var staticCheckpointId))
+        {
+            var staticCheckpoint = asNoTracking
+                ? await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == staticCheckpointId, cancellationToken)
+                : await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == staticCheckpointId, cancellationToken);
+            if (staticCheckpoint is null) return new(AttendanceCaptureStatus.InvalidToken);
+            if (staticCheckpoint.QrMode != CheckpointQrMode.Static) return new(AttendanceCaptureStatus.InvalidToken);
+            return new(staticCheckpoint, qrService.CreateStaticPayload(staticCheckpoint.Id));
+        }
+
+        var validation = qrService.Validate(token);
+        if (validation.Status != CheckpointQrValidationStatus.Valid) return new(MapTokenStatus(validation.Status));
+        var checkpoint = asNoTracking
+            ? await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken)
+            : await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
+        if (checkpoint is null || checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
+        return new(checkpoint, validation.Payload);
+    }
+
+    private sealed record ResolvedCheckpoint(Checkpoint? Checkpoint = null, CheckpointQrPayload? Payload = null, AttendanceCaptureStatus? Status = null)
+    {
+        public ResolvedCheckpoint(AttendanceCaptureStatus status) : this(null, null, status) { }
+        public ResolvedCheckpoint(Checkpoint checkpoint, CheckpointQrPayload payload) : this(checkpoint, payload, null) { }
     }
 
     private static AttendanceCaptureStatus MapTokenStatus(CheckpointQrValidationStatus status) => status switch

@@ -57,7 +57,7 @@ public static class CheckpointEndpointRouteBuilderExtensions
         var checkpoint = await service.FindAsync(id, ct);
         if (checkpoint is null) return TypedResults.NotFound();
         if (checkpoint.QrMode == CheckpointQrMode.Static)
-            return TypedResults.Ok(new CheckpointQrResponse(checkpoint.StaticQrToken!, null));
+            return TypedResults.Ok(new CheckpointQrResponse(qrService.CreateStaticToken(checkpoint.Id), null));
         var payload = qrService.CreatePayload(checkpoint.Id);
         return TypedResults.Ok(new CheckpointQrResponse(qrService.Protect(payload), payload.ExpiresAt));
     }
