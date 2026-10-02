@@ -1,4 +1,4 @@
-export type CaptureAction='Entry'|'LunchStart'|'LunchEnd'|'Exit'|'CommissionExit'|'CommissionReturn'|'OtherExit'|'OtherReturn'
+export type CaptureAction='Entry'|'LunchStart'|'LunchEnd'|'Exit'|'CommissionExit'|'CommissionReturn'|'OtherExit'|'OtherReturn'|'OvertimeStart'|'OvertimeEnd'
 export interface CheckpointSummary { id:string; code:string; name:string; type:string }
 export interface CaptureResolution { checkpoint:CheckpointSummary; availableActions:CaptureAction[]; message:string }
 export interface CaptureMark { id:string; type:CaptureAction; occurredAt:string; checkpoint:CheckpointSummary; message:string }

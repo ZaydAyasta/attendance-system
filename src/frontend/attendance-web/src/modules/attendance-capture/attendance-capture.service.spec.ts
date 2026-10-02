@@ -14,5 +14,9 @@ describe('attendanceCaptureService', () => {
     expect(apiClient.post).toHaveBeenNthCalledWith(2, '/attendance/capture/mark', { qrToken: 'qr', action: 'Entry' })
     expect(apiClient.get).toHaveBeenCalledWith('/me/attendance/marks/today')
   })
-  it('uses human labels for capture actions', () => expect(captureActionLabel('CommissionReturn')).toBe('Regresar de comisión'))
+  it('uses human labels for capture actions', () => {
+    expect(captureActionLabel('CommissionReturn')).toBe('Regresar de comisión')
+    expect(captureActionLabel('OvertimeStart')).toBe('Iniciar horas extra')
+    expect(captureActionLabel('OvertimeEnd')).toBe('Finalizar horas extra')
+  })
 })

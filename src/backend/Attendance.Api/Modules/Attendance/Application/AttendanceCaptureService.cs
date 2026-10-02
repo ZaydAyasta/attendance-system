@@ -24,6 +24,7 @@ public sealed class AttendanceCaptureService(
 
         var checkpoint = await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
+        if (checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
         var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
         var message = actions.Count == 0
             ? "No hay una marcación disponible para este checkpoint en este momento."
@@ -41,6 +42,7 @@ public sealed class AttendanceCaptureService(
 
         var checkpoint = await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
+        if (checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
         var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
         if (!actions.Contains(requestedAction))
             return new(AttendanceCaptureStatus.InvalidAction, Message: "Esta marcación ya no es válida para la secuencia actual.");
@@ -98,6 +100,6 @@ public sealed class AttendanceCaptureService(
     private static CheckpointSummaryResponse ToSummary(Checkpoint checkpoint) => new(checkpoint.Id, checkpoint.Code, checkpoint.Name, checkpoint.Type.ToString());
     private static string MessageFor(AttendanceMarkType type) => type switch
     {
-        AttendanceMarkType.Entry => "Entrada registrada.", AttendanceMarkType.LunchStart => "Inicio de almuerzo registrado.", AttendanceMarkType.LunchEnd => "Fin de almuerzo registrado.", AttendanceMarkType.Exit => "Salida registrada.", AttendanceMarkType.CommissionExit => "Salida a comisión registrada.", AttendanceMarkType.CommissionReturn => "Regreso de comisión registrado.", AttendanceMarkType.OtherExit => "Otra salida registrada.", AttendanceMarkType.OtherReturn => "Retorno registrado.", _ => "Marcación registrada."
+        AttendanceMarkType.Entry => "Entrada registrada.", AttendanceMarkType.LunchStart => "Inicio de almuerzo registrado.", AttendanceMarkType.LunchEnd => "Fin de almuerzo registrado.", AttendanceMarkType.Exit => "Salida registrada.", AttendanceMarkType.CommissionExit => "Salida a comisión registrada.", AttendanceMarkType.CommissionReturn => "Regreso de comisión registrado.", AttendanceMarkType.OtherExit => "Otra salida registrada.", AttendanceMarkType.OtherReturn => "Retorno registrado.", AttendanceMarkType.OvertimeStart => "Inicio de horas extra registrado.", AttendanceMarkType.OvertimeEnd => "Fin de horas extra registrado.", _ => "Marcación registrada."
     };
 }

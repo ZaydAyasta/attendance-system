@@ -9,15 +9,16 @@ namespace Attendance.Api.Modules.Checkpoints.Application;
 public enum CheckpointWriteStatus { Success, NotFound, Duplicate, ConcurrencyConflict, Invalid }
 public sealed record CheckpointWriteResult(CheckpointWriteStatus Status, CheckpointResponse? Value = null);
 
-public sealed class CheckpointService(AttendanceDbContext dbContext)
+public sealed class CheckpointService(AttendanceDbContext dbContext, CheckpointQrService qrService)
 {
     public Task<List<CheckpointResponse>> ListAsync(CancellationToken cancellationToken) => dbContext.Checkpoints.AsNoTracking()
-        .OrderBy(x => x.Name).Select(x => new CheckpointResponse(x.Id, x.Code, x.Name, x.Type.ToString(), x.IsActive, x.Version)).ToListAsync(cancellationToken);
+        .OrderBy(x => x.Name).Select(x => new CheckpointResponse(x.Id, x.Code, x.Name, x.Type.ToString(), x.IsActive, x.Version, x.QrMode.ToString())).ToListAsync(cancellationToken);
 
     public async Task<CheckpointWriteResult> CreateAsync(CreateCheckpointRequest request, CancellationToken cancellationToken)
     {
-        if (!TryType(request.Type, out var type)) return new(CheckpointWriteStatus.Invalid);
-        var checkpoint = Checkpoint.Create(request.Code, request.Name, type);
+        if (!TryType(request.Type, out var type) || !TryQrMode(request.QrMode ?? nameof(CheckpointQrMode.Dynamic), out var qrMode)) return new(CheckpointWriteStatus.Invalid);
+        var checkpoint = Checkpoint.Create(request.Code, request.Name, type, qrMode);
+        EnsureStaticQrToken(checkpoint);
         dbContext.Checkpoints.Add(checkpoint);
         try { await dbContext.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { return new(CheckpointWriteStatus.Duplicate); }
@@ -26,10 +27,13 @@ public sealed class CheckpointService(AttendanceDbContext dbContext)
 
     public async Task<CheckpointWriteResult> UpdateAsync(Guid id, UpdateCheckpointRequest request, CancellationToken cancellationToken)
     {
-        if (!TryType(request.Type, out var type)) return new(CheckpointWriteStatus.Invalid);
+        if (!TryType(request.Type, out var type) || (request.QrMode is not null && !TryQrMode(request.QrMode, out _))) return new(CheckpointWriteStatus.Invalid);
         var checkpoint = await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (checkpoint is null) return new(CheckpointWriteStatus.NotFound);
-        checkpoint.Update(request.Code, request.Name, type);
+        var qrMode = checkpoint.QrMode;
+        if (request.QrMode is not null) TryQrMode(request.QrMode, out qrMode);
+        checkpoint.Update(request.Code, request.Name, type, qrMode);
+        EnsureStaticQrToken(checkpoint);
         dbContext.Entry(checkpoint).Property(x => x.Version).OriginalValue = request.Version;
         return await SaveAsync(checkpoint, cancellationToken);
     }
@@ -54,5 +58,11 @@ public sealed class CheckpointService(AttendanceDbContext dbContext)
     }
 
     private static bool TryType(string value, out CheckpointType type) => Enum.TryParse(value, true, out type) && Enum.IsDefined(type);
-    public static CheckpointResponse Map(Checkpoint checkpoint) => new(checkpoint.Id, checkpoint.Code, checkpoint.Name, checkpoint.Type.ToString(), checkpoint.IsActive, checkpoint.Version);
+    private static bool TryQrMode(string value, out CheckpointQrMode qrMode) => Enum.TryParse(value, true, out qrMode) && Enum.IsDefined(qrMode);
+    private void EnsureStaticQrToken(Checkpoint checkpoint)
+    {
+        if (checkpoint.QrMode == CheckpointQrMode.Static && string.IsNullOrWhiteSpace(checkpoint.StaticQrToken))
+            checkpoint.SetStaticQrToken(qrService.Protect(qrService.CreateStaticPayload(checkpoint.Id)));
+    }
+    public static CheckpointResponse Map(Checkpoint checkpoint) => new(checkpoint.Id, checkpoint.Code, checkpoint.Name, checkpoint.Type.ToString(), checkpoint.IsActive, checkpoint.Version, checkpoint.QrMode.ToString());
 }

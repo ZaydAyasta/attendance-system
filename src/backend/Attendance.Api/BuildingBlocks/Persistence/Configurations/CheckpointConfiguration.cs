@@ -14,6 +14,8 @@ public sealed class CheckpointConfiguration : IEntityTypeConfiguration<Checkpoin
         builder.Property(x => x.Code).HasColumnName("code").HasMaxLength(60).IsRequired();
         builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(160).IsRequired();
         builder.Property(x => x.Type).HasColumnName("checkpoint_type").HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(x => x.QrMode).HasColumnName("qr_mode").HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.StaticQrToken).HasColumnName("static_qr_token").HasMaxLength(2048);
         builder.Property(x => x.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(x => x.Version).HasColumnName("xmin").IsRowVersion();
         builder.HasIndex(x => x.Code).IsUnique();

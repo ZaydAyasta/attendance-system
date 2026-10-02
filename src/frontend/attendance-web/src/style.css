@@ -1088,6 +1088,7 @@ img {
 }
 
 .checkpoint-qr { display:flex; justify-content:center; padding:1rem; background:#fff; border-radius:12px; }
+.checkpoint-qr-mode-help { margin: -.35rem 0 0; color: var(--app-muted); font-size: .9rem; line-height: 1.4; }
 .mark-view { display:grid; gap:1rem; max-width:720px; }
 .mark-camera { display:grid; gap:1rem; justify-items:start; }
 .mark-camera video { width:100%; max-height:360px; background:#161b22; border-radius:12px; }

@@ -1,5 +1,6 @@
 using Attendance.Api.Modules.Checkpoints.Application;
 using Attendance.Api.Modules.Checkpoints.Contracts;
+using Attendance.Api.Modules.Checkpoints.Domain;
 using Attendance.Api.Modules.Auditing.Application;
 using Microsoft.AspNetCore.Antiforgery;
 
@@ -18,7 +19,7 @@ public static class CheckpointEndpointRouteBuilderExtensions
             .WithName("UpdateCheckpoint").WithSummary("Update checkpoint").Accepts<UpdateCheckpointRequest>("application/json").Produces<CheckpointResponse>().Produces(StatusCodes.Status409Conflict);
         group.MapPut("/{id:guid}/status", SetStatusAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true))
             .WithName("SetCheckpointStatus").WithSummary("Activate or deactivate checkpoint").Accepts<SetCheckpointStatusRequest>("application/json").Produces<CheckpointResponse>().Produces(StatusCodes.Status409Conflict);
-        group.MapGet("/{id:guid}/qr", GetQrAsync).WithName("GetCheckpointQr").WithSummary("Generate short-lived checkpoint QR token").Produces<CheckpointQrResponse>().Produces(StatusCodes.Status404NotFound);
+        group.MapGet("/{id:guid}/qr", GetQrAsync).WithName("GetCheckpointQr").WithSummary("Get checkpoint QR token").Produces<CheckpointQrResponse>().Produces(StatusCodes.Status404NotFound);
         return endpoints;
     }
 
@@ -55,6 +56,8 @@ public static class CheckpointEndpointRouteBuilderExtensions
     {
         var checkpoint = await service.FindAsync(id, ct);
         if (checkpoint is null) return TypedResults.NotFound();
+        if (checkpoint.QrMode == CheckpointQrMode.Static)
+            return TypedResults.Ok(new CheckpointQrResponse(checkpoint.StaticQrToken!, null));
         var payload = qrService.CreatePayload(checkpoint.Id);
         return TypedResults.Ok(new CheckpointQrResponse(qrService.Protect(payload), payload.ExpiresAt));
     }

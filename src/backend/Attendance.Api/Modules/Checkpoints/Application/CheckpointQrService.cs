@@ -2,10 +2,11 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
+using Attendance.Api.Modules.Checkpoints.Domain;
 
 namespace Attendance.Api.Modules.Checkpoints.Application;
 
-public sealed record CheckpointQrPayload(Guid CheckpointId, string Nonce, DateTimeOffset IssuedAt, DateTimeOffset ExpiresAt);
+public sealed record CheckpointQrPayload(Guid CheckpointId, string Nonce, DateTimeOffset IssuedAt, DateTimeOffset? ExpiresAt, CheckpointQrMode Mode = CheckpointQrMode.Dynamic);
 public enum CheckpointQrValidationStatus { Valid, Invalid, Expired, Replayed }
 public sealed record CheckpointQrValidationResult(CheckpointQrValidationStatus Status, CheckpointQrPayload? Payload = null);
 
@@ -21,6 +22,9 @@ public sealed class CheckpointQrService(IDataProtectionProvider dataProtectionPr
         return new(checkpointId, Convert.ToHexString(RandomNumberGenerator.GetBytes(16)), issuedAt, issuedAt.Add(_lifetime));
     }
 
+    public CheckpointQrPayload CreateStaticPayload(Guid checkpointId)
+        => new(checkpointId, Convert.ToHexString(RandomNumberGenerator.GetBytes(16)), DateTimeOffset.UnixEpoch, null, CheckpointQrMode.Static);
+
     public string Protect(CheckpointQrPayload payload) => _protector.Protect(JsonSerializer.Serialize(payload));
 
     public CheckpointQrValidationResult Validate(string? token)
@@ -29,9 +33,11 @@ public sealed class CheckpointQrService(IDataProtectionProvider dataProtectionPr
         try
         {
             var payload = JsonSerializer.Deserialize<CheckpointQrPayload>(_protector.Unprotect(token));
-            if (payload is null || payload.CheckpointId == Guid.Empty || string.IsNullOrWhiteSpace(payload.Nonce) || payload.IssuedAt > payload.ExpiresAt)
+            if (payload is null || payload.CheckpointId == Guid.Empty || string.IsNullOrWhiteSpace(payload.Nonce) || !Enum.IsDefined(payload.Mode)
+                || (payload.Mode == CheckpointQrMode.Dynamic && (!payload.ExpiresAt.HasValue || payload.IssuedAt > payload.ExpiresAt.Value))
+                || (payload.Mode == CheckpointQrMode.Static && payload.ExpiresAt.HasValue))
                 return new(CheckpointQrValidationStatus.Invalid);
-            return payload.ExpiresAt <= DateTimeOffset.UtcNow
+            return payload.ExpiresAt is { } expiresAt && expiresAt <= DateTimeOffset.UtcNow
                 ? new(CheckpointQrValidationStatus.Expired)
                 : new(CheckpointQrValidationStatus.Valid, payload);
         }
@@ -41,10 +47,14 @@ public sealed class CheckpointQrService(IDataProtectionProvider dataProtectionPr
 
     public bool TryReserve(CheckpointQrPayload payload, Guid employeeId)
     {
+        if (payload.Mode == CheckpointQrMode.Static) return true;
         var now = DateTimeOffset.UtcNow;
         foreach (var item in _reservations.Where(x => x.Value <= now).ToArray()) _reservations.TryRemove(item.Key, out _);
-        return _reservations.TryAdd($"{payload.Nonce}:{employeeId:N}", payload.ExpiresAt);
+        return _reservations.TryAdd($"{payload.Nonce}:{employeeId:N}", payload.ExpiresAt!.Value);
     }
 
-    public void Release(CheckpointQrPayload payload, Guid employeeId) => _reservations.TryRemove($"{payload.Nonce}:{employeeId:N}", out _);
+    public void Release(CheckpointQrPayload payload, Guid employeeId)
+    {
+        if (payload.Mode == CheckpointQrMode.Dynamic) _reservations.TryRemove($"{payload.Nonce}:{employeeId:N}", out _);
+    }
 }

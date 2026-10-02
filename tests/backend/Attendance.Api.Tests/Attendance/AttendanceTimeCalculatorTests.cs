@@ -171,6 +171,18 @@ public sealed class AttendanceTimeCalculatorTests
     }
 
     [Fact]
+    public void Calculate_OvertimeInterval_IsRecordedWithoutChangingWorkedTimeCalculation()
+    {
+        var result = Calculate(
+            Mark(8, 0, AttendanceMarkType.Entry),
+            Mark(18, 0, AttendanceMarkType.OvertimeStart),
+            Mark(20, 0, AttendanceMarkType.OvertimeEnd),
+            Mark(20, 0, AttendanceMarkType.Exit));
+
+        AssertResult(result, 720, 0, 720, true);
+    }
+
+    [Fact]
     public void Calculate_MultipleValidLunchIntervals_SumsResolvedMinutes()
     {
         var result = Calculate(

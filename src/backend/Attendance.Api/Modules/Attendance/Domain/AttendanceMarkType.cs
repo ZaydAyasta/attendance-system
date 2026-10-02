@@ -43,5 +43,15 @@ public enum AttendanceMarkType
     /// <summary>
     /// Ends a temporary exit for other reasons; worked-time policy is defined elsewhere.
     /// </summary>
-    OtherReturn = 8
+    OtherReturn = 8,
+
+    /// <summary>
+    /// Starts an overtime interval after the regular work period.
+    /// </summary>
+    OvertimeStart = 9,
+
+    /// <summary>
+    /// Ends an overtime interval before the day's exit mark.
+    /// </summary>
+    OvertimeEnd = 10
 }

@@ -73,6 +73,8 @@ public sealed class AttendanceTimeCalculator
                 case AttendanceMarkType.Exit:
                 case AttendanceMarkType.CommissionExit:
                 case AttendanceMarkType.CommissionReturn:
+                case AttendanceMarkType.OvertimeStart:
+                case AttendanceMarkType.OvertimeEnd:
                     break;
                 case AttendanceMarkType.LunchStart:
                     if (activeLunchStart is not null)
