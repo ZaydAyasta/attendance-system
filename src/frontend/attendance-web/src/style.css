@@ -274,7 +274,17 @@ img {
 
 .app-shell__session { display: flex; align-items: center; gap: .75rem; min-width: 0; color: var(--app-muted); font-size: .88rem; }
 .app-shell__session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-shell__drawer-logout { margin-top: 1rem; }
+.app-shell__logout.p-button {
+  min-height: 2.5rem;
+  border-color: var(--app-brand-strong) !important;
+  background: var(--app-brand-strong) !important;
+  color: #ffffff !important;
+}
+.app-shell__logout.p-button:hover {
+  border-color: #02013a !important;
+  background: #02013a !important;
+}
+.app-shell__drawer-logout { width: 100%; margin-top: 1rem; justify-content: center; }
 .login-page { display: grid; min-height: 100vh; place-items: center; padding: 1.5rem; background: linear-gradient(135deg, #050452 0%, #0d0c6e 62%, #151583 100%); }
 .login-card { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(340px, 1.1fr); width: min(100%, 58rem); overflow: hidden; border: 1px solid rgba(255, 255, 255, .18); border-radius: 20px; background: #fff; box-shadow: 0 30px 80px rgba(0, 0, 0, .28); }
 .login-card__brand-panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 500px; padding: 2.25rem; background: var(--app-brand-strong); color: #fff; }
