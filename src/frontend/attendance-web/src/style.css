@@ -297,6 +297,27 @@ img {
 .login-card__error { margin: 0; color: #b42318; }
 .login-card__remember { display: flex !important; align-items: center; gap: .55rem; font-weight: 600; }
 .absence-form .login-card__remember input { width: 1.1rem; height: 1.1rem; min-height: 0; padding: 0; accent-color: var(--app-brand); }
+.login-card__password-field { position: relative; display: block; }
+.login-card__password-field input { padding-right: 3rem; }
+.login-card__password-toggle { position: absolute; top: 50%; right: .25rem; display: grid; width: 2.5rem; height: 2.5rem; place-items: center; transform: translateY(-50%); border: 0; border-radius: 6px; background: transparent; color: var(--app-brand); }
+.login-card__password-toggle:hover { background: rgba(8, 7, 90, .08); }
+.login-card__password-toggle:active { transform: translateY(-50%) scale(.97); }
+.login-card__password-toggle:focus-visible { outline: 3px solid rgba(255, 200, 0, .58); outline-offset: 1px; }
+
+.system-guide { display: grid; gap: 1rem; max-width: 920px; }
+.system-guide__hero { display: flex; align-items: end; justify-content: space-between; gap: 1.5rem; padding: 1.75rem; background: linear-gradient(135deg, #ffffff 0%, #fff9e5 100%); }
+.system-guide__eyebrow { margin: 0 0 .5rem; color: var(--app-accent-strong); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.system-guide__title { max-width: 36rem; margin: 0; color: var(--app-heading); font-size: clamp(1.35rem, 2.5vw, 1.75rem); letter-spacing: -.03em; line-height: 1.15; }
+.system-guide__description { max-width: 40rem; margin: .65rem 0 0; color: var(--app-muted); }
+.system-guide__cta { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: .55rem; min-height: 2.75rem; padding: .65rem 1rem; border: 1px solid var(--app-brand); border-radius: var(--app-radius-sm); background: var(--app-brand); color: #ffffff; font-weight: 700; transition: background-color .16s ease, border-color .16s ease, transform .16s ease; }
+.system-guide__cta:hover { border-color: #02013a; background: #02013a; transform: translateY(-1px); }
+.system-guide__cta:focus-visible { outline: 3px solid rgba(255, 200, 0, .58); outline-offset: 2px; }
+.system-guide__steps { display: grid; gap: 1rem; margin: 1.1rem 0 0; padding: 0; list-style: none; counter-reset: system-steps; }
+.system-guide__steps li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .75rem; align-items: start; }
+.system-guide__step-number { display: inline-grid; width: 2rem; height: 2rem; place-items: center; border-radius: 50%; background: var(--app-brand-soft); color: var(--app-brand); font-size: .88rem; font-weight: 800; }
+.system-guide__steps strong { color: var(--app-heading); }
+.system-guide__steps p { margin: .2rem 0 0; color: var(--app-muted); }
+.system-guide__scope { border-left: 4px solid var(--app-accent); }
 
 .app-shell__role-select:focus-visible,
 .app-nav__link:focus-visible,
@@ -999,6 +1020,15 @@ img {
 
   .login-card__form-panel {
     padding: 2rem 1.5rem;
+  }
+
+  .system-guide__hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .system-guide__cta {
+    width: 100%;
   }
 
   .app-shell__topbar-title p {

@@ -11,6 +11,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const form = reactive({ usernameOrEmail: '', password: '', rememberMe: true })
 const error = ref('')
+const passwordVisible = ref(false)
 
 async function submit(): Promise<void> {
   error.value = ''
@@ -45,7 +46,27 @@ async function submit(): Promise<void> {
         </div>
         <form class="absence-form" @submit.prevent="submit">
           <label>Usuario o correo<input v-model="form.usernameOrEmail" autocomplete="username" required /></label>
-          <label>Contraseña<input v-model="form.password" type="password" autocomplete="current-password" required /></label>
+          <label>
+            Contraseña
+            <span class="login-card__password-field">
+              <input
+                v-model="form.password"
+                :type="passwordVisible ? 'text' : 'password'"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                class="login-card__password-toggle"
+                type="button"
+                :aria-label="passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                :aria-pressed="passwordVisible"
+                :title="passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                @click="passwordVisible = !passwordVisible"
+              >
+                <i :class="passwordVisible ? 'pi pi-eye-slash' : 'pi pi-eye'" aria-hidden="true" />
+              </button>
+            </span>
+          </label>
           <label class="login-card__remember"><input v-model="form.rememberMe" type="checkbox" /> Mantener sesión iniciada</label>
           <p v-if="error" class="login-card__error" role="alert">{{ error }}</p>
           <Button label="Iniciar sesión" type="submit" :loading="authStore.loading" :disabled="authStore.loading" />
