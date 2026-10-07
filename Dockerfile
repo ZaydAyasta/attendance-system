@@ -12,6 +12,7 @@ WORKDIR /src
 COPY src/backend/Attendance.Api/Attendance.Api.csproj src/backend/Attendance.Api/
 RUN dotnet restore src/backend/Attendance.Api/Attendance.Api.csproj
 COPY src/backend/Attendance.Api/ src/backend/Attendance.Api/
+COPY --from=frontend /src/frontend/attendance-web/src/assets/image-1.png src/frontend/attendance-web/src/assets/image-1.png
 COPY --from=frontend /src/frontend/attendance-web/dist src/frontend/attendance-web/dist
 RUN dotnet publish src/backend/Attendance.Api/Attendance.Api.csproj --configuration Release --no-restore --output /app/publish
 
