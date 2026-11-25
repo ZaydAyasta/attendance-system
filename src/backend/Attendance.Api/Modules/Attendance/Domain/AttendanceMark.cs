@@ -22,6 +22,10 @@ public sealed class AttendanceMark
     /// Gets the checkpoint that produced the mark, when applicable.
     /// </summary>
     public Guid? CheckpointId { get; private set; }
+    public string? ManualReason { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
+    public string? VoidReason { get; private set; }
+    public Guid? ReplacesMarkId { get; private set; }
 
     private AttendanceMark()
     {
@@ -56,6 +60,21 @@ public sealed class AttendanceMark
             type,
             source,
             checkpointId);
+
+    public static AttendanceMark CreateManual(Guid employeeId, DateTimeOffset occurredAt,
+        AttendanceMarkType type, string reason, Guid? replacesMarkId = null)
+        => new(Guid.NewGuid(), employeeId, occurredAt, type, AttendanceSource.Manual, null)
+        {
+            ManualReason = reason,
+            ReplacesMarkId = replacesMarkId
+        };
+
+    public void Void(DateTimeOffset at, string reason)
+    {
+        if (VoidedAt.HasValue) throw new InvalidOperationException("The mark is already voided.");
+        VoidedAt = at;
+        VoidReason = reason;
+    }
 
     private static Guid EnsureValidEmployeeId(Guid employeeId)
     {

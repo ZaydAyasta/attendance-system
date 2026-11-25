@@ -12,20 +12,34 @@ using ClosedXML.Excel;
 using ClosedXML.Excel.Drawings;
 using PdfSharp.Pdf;
 using PdfSharp.Drawing;
+using PdfSharp.Fonts;
 
 namespace Attendance.Api.Modules.Reporting.Application;
 public sealed class AttendanceReportService(AttendanceDbContext db, AttendanceEvaluator evaluator, AttendanceTimeCalculator timeCalculator, AttendanceTimeZone attendanceTimeZone)
 {
  private const string NakamaLogoResourceName = "Attendance.Api.Assets.NakamaLogo.png";
 
+ static AttendanceReportService()
+ {
+  GlobalFontSettings.FontResolver = new AttendanceReportFontResolver();
+ }
+
  public async Task<AttendanceReportResponse> GetAsync(DateOnly from,DateOnly to,Guid? employeeId,CancellationToken ct){
-  var employees=await db.Employees.AsNoTracking().Where(x=>employeeId.HasValue?x.Id==employeeId.Value:x.IsActive).OrderBy(x=>x.LastName).ThenBy(x=>x.FirstName).ToListAsync(ct);
+  var employees=await db.Employees.AsNoTracking()
+   .Where(x => employeeId.HasValue
+    ? x.Id == employeeId.Value
+    : x.HireDate <= to && (x.TerminationDate == null || x.TerminationDate >= from))
+   .OrderBy(x=>x.LastName).ThenBy(x=>x.FirstName).ToListAsync(ct);
   var employeeIds=employees.Select(x=>x.Id).ToArray();
   var calendars=await db.WorkCalendarDays.AsNoTracking().Where(x=>x.Date>=from&&x.Date<=to).ToDictionaryAsync(x=>x.Date,ct);
-  var absences=(await db.Absences.AsNoTracking().Where(x=>employeeIds.Contains(x.EmployeeId)&&x.Status==AbsenceStatus.Active).ToListAsync(ct)).Where(x=>x.Period.Start<=to&&x.Period.End>=from).ToArray();
+  var absences=await db.Absences.AsNoTracking()
+   .Where(x => employeeIds.Contains(x.EmployeeId) && x.Status == AbsenceStatus.Active
+    && x.Period.Start <= to && x.Period.End >= from).ToListAsync(ct);
   var assignments=await db.EmployeeWorkAssignments.AsNoTracking().Where(x=>employeeIds.Contains(x.EmployeeId)&&x.Status==WorkAssignmentStatus.Active&&x.Date>=from&&x.Date<=to).ToListAsync(ct);
   var rangeStart=attendanceTimeZone.GetStartOfDay(from);var rangeEnd=attendanceTimeZone.GetStartOfNextDay(to);
-  var marks=(await db.AttendanceMarks.AsNoTracking().Where(x=>employeeIds.Contains(x.EmployeeId)).ToListAsync(ct)).Where(x=>x.OccurredAt>=rangeStart&&x.OccurredAt<rangeEnd).ToArray();
+  var marks=await db.AttendanceMarks.AsNoTracking()
+   .Where(x => employeeIds.Contains(x.EmployeeId) && x.OccurredAt >= rangeStart && x.OccurredAt < rangeEnd)
+   .ToListAsync(ct);
   var absenceByEmployee=absences.GroupBy(x=>x.EmployeeId).ToDictionary(x=>x.Key,x=>x.ToArray());
   var assignmentByEmployeeDate=assignments.ToDictionary(x=>(x.EmployeeId,x.Date));
   var marksByEmployeeDate=marks.GroupBy(x=>(x.EmployeeId,attendanceTimeZone.GetLocalDate(x.OccurredAt))).ToDictionary(x=>x.Key,x=>(IReadOnlyCollection<AttendanceMark>)x.OrderBy(m=>m.OccurredAt).ToArray());
@@ -107,9 +121,9 @@ public sealed class AttendanceReportService(AttendanceDbContext db, AttendanceEv
  public byte[] Pdf(AttendanceReportResponse report)
  {
   using var document=new PdfDocument();
-  var titleFont=new XFont("Arial",16,XFontStyleEx.Bold);
-  var headerFont=new XFont("Arial",8,XFontStyleEx.Bold);
-  var bodyFont=new XFont("Arial",8);
+  var titleFont=new XFont(AttendanceReportFontResolver.FamilyName,16,XFontStyleEx.Bold);
+  var headerFont=new XFont(AttendanceReportFontResolver.FamilyName,8,XFontStyleEx.Bold);
+  var bodyFont=new XFont(AttendanceReportFontResolver.FamilyName,8);
   PdfPage? page=null;
   XGraphics? graphics=null;
   var y=0d;

@@ -19,6 +19,7 @@ public static class AttendanceModuleServiceCollectionExtensions
         services.AddSingleton<AttendanceTimeCalculator>();
         services.AddScoped<DailyAttendanceService>();
         services.AddScoped<AttendanceCaptureService>();
+        services.AddScoped<AttendanceMarkAdministrationService>();
 
         return services;
     }

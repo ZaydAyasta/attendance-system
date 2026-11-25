@@ -52,12 +52,15 @@ public static class CheckpointEndpointRouteBuilderExtensions
         return result.Status == CheckpointWriteStatus.Success ? TypedResults.Ok(result.Value) : WriteProblem(result.Status);
     }
 
-    private static async Task<IResult> GetQrAsync(Guid id, CheckpointService service, CheckpointQrService qrService, CancellationToken ct)
+    private static async Task<IResult> GetQrAsync(Guid id, CheckpointService service, CheckpointQrService qrService, HttpContext context, CancellationToken ct)
     {
         var checkpoint = await service.FindAsync(id, ct);
-        if (checkpoint is null) return TypedResults.NotFound();
+        if (checkpoint is not { IsActive: true }) return TypedResults.NotFound();
+        context.Response.Headers.CacheControl = "no-store";
         if (checkpoint.QrMode == CheckpointQrMode.Static)
-            return TypedResults.Ok(new CheckpointQrResponse(qrService.CreateStaticToken(checkpoint.Id), null));
+            return checkpoint.StaticQrToken is { } token
+                ? TypedResults.Ok(new CheckpointQrResponse(token, null))
+                : TypedResults.NotFound();
         var payload = qrService.CreatePayload(checkpoint.Id);
         return TypedResults.Ok(new CheckpointQrResponse(qrService.Protect(payload), payload.ExpiresAt));
     }

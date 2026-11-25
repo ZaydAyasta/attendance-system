@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using Attendance.Api.BuildingBlocks.Persistence;
+using Attendance.Api.Modules.Attendance.Contracts;
+using Attendance.Api.Modules.Checkpoints.Contracts;
 using Attendance.Api.Modules.Employees.Domain;
 using Attendance.Api.Modules.Identity.Application;
 using Attendance.Api.Modules.Identity.Contracts;
@@ -18,6 +20,102 @@ namespace Attendance.Api.Tests.Identity;
 public sealed class IdentityAuthorizationTests(PostgreSqlAttendanceDatabaseFixture fixture)
     : IClassFixture<PostgreSqlAttendanceDatabaseFixture>
 {
+    [RequiresContainerRuntimeFact]
+    public async Task JsonMutationsRequireAValidCsrfToken()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        using var client = factory.CreateHttpsClient();
+
+        using var missingTokenLogin = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "Password1"));
+        Assert.Equal(HttpStatusCode.BadRequest, missingTokenLogin.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(client, "admin", "Password1")).StatusCode);
+
+        using var missingTokenLogout = await client.PostAsync("/api/auth/logout", content: null);
+        Assert.Equal(HttpStatusCode.BadRequest, missingTokenLogout.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await LogoutAsync(client)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/me")).StatusCode);
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task ManualCorrectionPreservesTheOriginalMarkAndRequiresAdmin()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
+        var employee = Employee.Create("EMP-CA", "Ana", "Torres", new DateOnly(2025, 1, 1));
+        db.Employees.Add(employee);
+        await db.SaveChangesAsync();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "admin", IdentityRoles.Admin, null);
+        await CreateUserAsync(users, "employee", IdentityRoles.User, employee.Id);
+        using var admin = factory.CreateHttpsClient();
+        using var user = factory.CreateHttpsClient();
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(admin, "admin", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(user, "employee", "Password1")).StatusCode);
+
+        var route = $"/api/employees/{employee.Id}/attendance/marks";
+        var date = new DateOnly(2026, 8, 1);
+        var add = new AttendanceMarkChange(date, new TimeOnly(9, 0), "Entry", "Registro de contingencia");
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendWithCsrfAsync(user, HttpMethod.Post, route, add)).StatusCode);
+        var created = await SendWithCsrfAsync(admin, HttpMethod.Post, route, add);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var original = (await created.Content.ReadFromJsonAsync<AttendanceMarkHistoryItem>())!;
+
+        var correction = await SendWithCsrfAsync(admin, HttpMethod.Post, $"{route}/{original.Id}/correction",
+            add with { Time = new TimeOnly(9, 15), Reason = "Hora confirmada en la hoja" });
+        Assert.Equal(HttpStatusCode.OK, correction.StatusCode);
+        var replacement = (await correction.Content.ReadFromJsonAsync<AttendanceMarkHistoryItem>())!;
+        Assert.Equal(original.Id, replacement.ReplacesMarkId);
+        Assert.Equal(new TimeOnly(9, 15), replacement.LocalTime);
+        var history = await admin.GetFromJsonAsync<AttendanceMarkHistoryItem[]>($"{route}/{date:yyyy-MM-dd}");
+        Assert.Collection(history!, first => Assert.NotNull(first.VoidedAt), second => Assert.Null(second.VoidedAt));
+        Assert.Equal(replacement.Id, (await db.AttendanceMarks.SingleAsync()).Id);
+        Assert.True(await db.AuditEvents.AnyAsync(item => item.Action == "CorrectAttendanceMark" && item.EntityId == original.Id.ToString()));
+    }
+
+    [RequiresContainerRuntimeFact]
+    public async Task ConcurrentStaticCapturesPersistOnlyOneEntry()
+    {
+        await fixture.ResetAsync();
+        using var factory = new IdentityApiFactory(fixture.ConnectionString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
+        var employee = Employee.Create("EMP-QR", "Ana", "Torres", new DateOnly(2025, 1, 1));
+        db.Employees.Add(employee);
+        await db.SaveChangesAsync();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await CreateUserAsync(users, "employee", IdentityRoles.User, employee.Id);
+        await CreateUserAsync(users, "it", IdentityRoles.IT, null);
+        using var userA = factory.CreateHttpsClient();
+        using var userB = factory.CreateHttpsClient();
+        using var it = factory.CreateHttpsClient();
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(userA, "employee", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(userB, "employee", "Password1")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(it, "it", "Password1")).StatusCode);
+
+        var created = await SendWithCsrfAsync(it, HttpMethod.Post, "/api/checkpoints",
+            new CreateCheckpointRequest("TEST-QR", "Punto de prueba", "General", "Static"));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var checkpoint = (await created.Content.ReadFromJsonAsync<CheckpointResponse>())!;
+        var qr = (await it.GetFromJsonAsync<CheckpointQrResponse>($"/api/checkpoints/{checkpoint.Id}/qr"))!;
+        Assert.Equal(HttpStatusCode.Forbidden, (await userA.GetAsync($"/api/checkpoints/{checkpoint.Id}/qr")).StatusCode);
+
+        var request = new CreateAttendanceCaptureMarkRequest(qr.Token, "Entry");
+        var responses = await Task.WhenAll(
+            SendWithCsrfAsync(userA, HttpMethod.Post, "/api/attendance/capture/mark", request),
+            SendWithCsrfAsync(userB, HttpMethod.Post, "/api/attendance/capture/mark", request));
+        Assert.Equal(new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }, responses.Select(response => response.StatusCode).Order());
+        var mark = await db.AttendanceMarks.SingleAsync();
+        Assert.Equal(employee.Id, mark.EmployeeId);
+        Assert.Equal("StaticQr", mark.Source.ToString());
+    }
+
     [RequiresContainerRuntimeFact]
     public async Task Anonymous_admin_user_and_it_access_are_enforced_by_backend_policies()
     {

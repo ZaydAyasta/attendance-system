@@ -18,7 +18,7 @@ namespace Attendance.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -100,9 +100,18 @@ namespace Attendance.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
 
+                    b.Property<string>("ManualReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("manual_reason");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("occurred_at");
+
+                    b.Property<Guid?>("ReplacesMarkId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaces_mark_id");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -116,9 +125,20 @@ namespace Attendance.Api.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("mark_type");
 
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("void_reason");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voided_at");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CheckpointId");
+
+                    b.HasIndex("ReplacesMarkId");
 
                     b.HasIndex("EmployeeId", "OccurredAt");
 
@@ -236,6 +256,9 @@ namespace Attendance.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("StaticQrToken")
                         .IsUnique();
 
                     b.ToTable("checkpoints", (string)null);
@@ -666,6 +689,11 @@ namespace Attendance.Api.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Attendance.Api.Modules.Attendance.Domain.AttendanceMark", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacesMarkId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Attendance.Api.Modules.Identity.Domain.ApplicationUser", b =>

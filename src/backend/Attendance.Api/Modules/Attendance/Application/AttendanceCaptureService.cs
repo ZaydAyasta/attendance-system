@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Attendance.Api.Modules.Attendance.Application;
 
-public enum AttendanceCaptureStatus { Success, InvalidToken, ExpiredToken, InactiveCheckpoint, Replay, InvalidAction }
+public enum AttendanceCaptureStatus { Success, InvalidToken, ExpiredToken, InactiveCheckpoint, Replay, InvalidAction, EmployeeUnavailable }
 public sealed record AttendanceCaptureResult<T>(AttendanceCaptureStatus Status, T? Value = default, string? Message = null);
 
 public sealed class AttendanceCaptureService(
@@ -18,11 +18,13 @@ public sealed class AttendanceCaptureService(
 {
     public async Task<AttendanceCaptureResult<AttendanceCaptureResolutionResponse>> ResolveAsync(Guid employeeId, string token, CancellationToken cancellationToken)
     {
-        var checkpointResult = await ResolveCheckpointAsync(token, true, cancellationToken);
+        var occurredAt = DateTimeOffset.UtcNow;
+        if (!await CanMarkAsync(employeeId, occurredAt, cancellationToken)) return new(AttendanceCaptureStatus.EmployeeUnavailable);
+        var checkpointResult = await ResolveCheckpointAsync(token, cancellationToken);
         if (checkpointResult.Status is { } status) return new(status);
         var checkpoint = checkpointResult.Checkpoint!;
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
-        var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
+        var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, occurredAt, cancellationToken);
         var message = actions.Count == 0
             ? "No hay una marcación disponible para este checkpoint en este momento."
             : actions.Count == 1 ? "Acción disponible." : "Selecciona la acción que deseas registrar.";
@@ -34,11 +36,18 @@ public sealed class AttendanceCaptureService(
         if (!Enum.TryParse<AttendanceMarkType>(action, true, out var requestedAction) || !Enum.IsDefined(requestedAction))
             return new(AttendanceCaptureStatus.InvalidAction, Message: "La acción solicitada no es válida.");
 
-        var checkpointResult = await ResolveCheckpointAsync(token, false, cancellationToken);
+        await using var transaction = dbContext.Database.IsNpgsql()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (transaction is not null) await AttendanceEmployeeLock.AcquireAsync(dbContext, employeeId, cancellationToken);
+
+        var checkpointResult = await ResolveCheckpointAsync(token, cancellationToken);
         if (checkpointResult.Status is { } status) return new(status);
         var checkpoint = checkpointResult.Checkpoint!;
         if (checkpoint is null || !checkpoint.IsActive) return new(AttendanceCaptureStatus.InactiveCheckpoint);
-        var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, cancellationToken);
+        var occurredAt = DateTimeOffset.UtcNow;
+        if (!await CanMarkAsync(employeeId, occurredAt, cancellationToken)) return new(AttendanceCaptureStatus.EmployeeUnavailable);
+        var actions = await GetAvailableActionsAsync(employeeId, checkpoint.Type, occurredAt, cancellationToken);
         if (!actions.Contains(requestedAction))
             return new(AttendanceCaptureStatus.InvalidAction, Message: "Esta marcación ya no es válida para la secuencia actual.");
         if (!qrService.TryReserve(checkpointResult.Payload!, employeeId))
@@ -46,9 +55,11 @@ public sealed class AttendanceCaptureService(
 
         try
         {
-            var mark = AttendanceMark.Create(employeeId, DateTimeOffset.UtcNow, requestedAction, AttendanceSource.DynamicQr, checkpoint.Id);
+            var source = checkpoint.QrMode == CheckpointQrMode.Static ? AttendanceSource.StaticQr : AttendanceSource.DynamicQr;
+            var mark = AttendanceMark.Create(employeeId, occurredAt, requestedAction, source, checkpoint.Id);
             dbContext.AttendanceMarks.Add(mark);
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
             return new(AttendanceCaptureStatus.Success, new(mark.Id, mark.Type.ToString(), mark.OccurredAt, ToSummary(checkpoint), MessageFor(mark.Type)));
         }
         catch
@@ -74,9 +85,9 @@ public sealed class AttendanceCaptureService(
         ).ToListAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyCollection<AttendanceMarkType>> GetAvailableActionsAsync(Guid employeeId, CheckpointType checkpointType, CancellationToken cancellationToken)
+    private async Task<IReadOnlyCollection<AttendanceMarkType>> GetAvailableActionsAsync(Guid employeeId, CheckpointType checkpointType, DateTimeOffset occurredAt, CancellationToken cancellationToken)
     {
-        var today = attendanceTimeZone.GetLocalDate(DateTimeOffset.UtcNow);
+        var today = attendanceTimeZone.GetLocalDate(occurredAt);
         var start = attendanceTimeZone.GetStartOfDay(today);
         var end = attendanceTimeZone.GetStartOfNextDay(today);
         var marks = await dbContext.AttendanceMarks.AsNoTracking()
@@ -86,13 +97,19 @@ public sealed class AttendanceCaptureService(
         return AttendanceCaptureSequence.Resolve(marks.Select(x => x.Type).ToArray(), checkpointType);
     }
 
-    private async Task<ResolvedCheckpoint> ResolveCheckpointAsync(string token, bool asNoTracking, CancellationToken cancellationToken)
+    private Task<bool> CanMarkAsync(Guid employeeId, DateTimeOffset occurredAt, CancellationToken cancellationToken)
     {
-        if (qrService.TryGetStaticCheckpointId(token, out var staticCheckpointId))
+        var date = attendanceTimeZone.GetLocalDate(occurredAt);
+        return dbContext.Employees.AnyAsync(x => x.Id == employeeId && x.IsActive && x.HireDate <= date
+            && (x.TerminationDate == null || x.TerminationDate >= date), cancellationToken);
+    }
+
+    private async Task<ResolvedCheckpoint> ResolveCheckpointAsync(string token, CancellationToken cancellationToken)
+    {
+        if (qrService.IsStaticToken(token))
         {
-            var staticCheckpoint = asNoTracking
-                ? await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == staticCheckpointId, cancellationToken)
-                : await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == staticCheckpointId, cancellationToken);
+            var staticCheckpoint = await dbContext.Checkpoints.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.StaticQrToken == token, cancellationToken);
             if (staticCheckpoint is null) return new(AttendanceCaptureStatus.InvalidToken);
             if (staticCheckpoint.QrMode != CheckpointQrMode.Static) return new(AttendanceCaptureStatus.InvalidToken);
             return new(staticCheckpoint, qrService.CreateStaticPayload(staticCheckpoint.Id));
@@ -100,9 +117,9 @@ public sealed class AttendanceCaptureService(
 
         var validation = qrService.Validate(token);
         if (validation.Status != CheckpointQrValidationStatus.Valid) return new(MapTokenStatus(validation.Status));
-        var checkpoint = asNoTracking
-            ? await dbContext.Checkpoints.AsNoTracking().SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken)
-            : await dbContext.Checkpoints.SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
+        if (validation.Payload!.Mode != CheckpointQrMode.Dynamic) return new(AttendanceCaptureStatus.InvalidToken);
+        var checkpoint = await dbContext.Checkpoints.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == validation.Payload!.CheckpointId, cancellationToken);
         if (checkpoint is null || checkpoint.QrMode != validation.Payload!.Mode) return new(AttendanceCaptureStatus.InvalidToken);
         return new(checkpoint, validation.Payload);
     }

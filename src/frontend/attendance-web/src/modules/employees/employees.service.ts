@@ -8,6 +8,10 @@ export async function listActiveEmployees(): Promise<EmployeeOption[]> {
   const response = await apiClient.get<EmployeeOption[]>('/employees', { params: { isActive: true } })
   return response.data
 }
+
+export async function listEmployeeOptions(): Promise<EmployeeOption[]> {
+  return (await apiClient.get<EmployeeOption[]>('/employees')).data
+}
 export const listEmployees=async():Promise<Employee[]> => (await apiClient.get<Employee[]>('/employees/manage')).data
 export const createEmployee=async(x:EmployeeRequest):Promise<Employee> => (await apiClient.post<Employee>('/employees',x)).data
 export const updateEmployee=async(id:string,x:EmployeeRequest&{version:number}):Promise<Employee> => (await apiClient.put<Employee>(`/employees/${id}`,x)).data

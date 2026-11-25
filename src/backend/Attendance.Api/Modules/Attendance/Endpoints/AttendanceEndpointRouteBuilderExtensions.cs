@@ -15,6 +15,23 @@ public static class AttendanceEndpointRouteBuilderExtensions
             .WithTags("Attendance")
             .RequireAuthorization("AdminOnly");
 
+        var markAdministration = employeesGroup.MapGroup("/{employeeId:guid}/attendance/marks");
+        markAdministration.MapGet("/{date}", async (Guid employeeId, DateOnly date, AttendanceMarkAdministrationService service,
+            CancellationToken ct) =>
+        {
+            var validation = AttendanceRequestValidator.ValidateDate(date);
+            return validation.IsValid ? await service.ListAsync(employeeId, date, ct)
+                : (IResult)TypedResults.ValidationProblem(validation.Errors);
+        });
+        markAdministration.MapPost("", (Guid employeeId, AttendanceMarkChange request, HttpContext context,
+            AttendanceMarkAdministrationService service, CancellationToken ct) =>
+                service.ChangeAsync(employeeId, null, request, context.User, ct))
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        markAdministration.MapPost("/{markId:guid}/correction", (Guid employeeId, Guid markId, AttendanceMarkChange request,
+            HttpContext context, AttendanceMarkAdministrationService service, CancellationToken ct) =>
+                service.ChangeAsync(employeeId, markId, request, context.User, ct))
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+
         employeesGroup.MapGet(
             "/{employeeId:guid}/attendance/{date}",
             GetByDateAsync)
@@ -81,6 +98,7 @@ public static class AttendanceEndpointRouteBuilderExtensions
     private static IResult CaptureProblem(AttendanceCaptureStatus status, string? message) => status switch
     {
         AttendanceCaptureStatus.InactiveCheckpoint => TypedResults.Problem(message ?? "Este checkpoint está desactivado.", statusCode: StatusCodes.Status400BadRequest, title: "Checkpoint unavailable."),
+        AttendanceCaptureStatus.EmployeeUnavailable => TypedResults.Problem("Tu registro laboral no está habilitado para marcar asistencia.", statusCode: StatusCodes.Status403Forbidden),
         AttendanceCaptureStatus.ExpiredToken => TypedResults.Problem("El código QR expiró. Escanea el nuevo código.", statusCode: StatusCodes.Status400BadRequest, title: "QR expired."),
         AttendanceCaptureStatus.Replay or AttendanceCaptureStatus.InvalidAction => TypedResults.Problem(message ?? "La marcación ya no es válida.", statusCode: StatusCodes.Status409Conflict, title: "Invalid mark sequence."),
         _ => TypedResults.Problem("El código QR no es válido.", statusCode: StatusCodes.Status400BadRequest, title: "Invalid QR."),

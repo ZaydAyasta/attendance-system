@@ -15,8 +15,8 @@ marcaciones digitales realizadas desde puntos físicos de la organización.
 
 ### ¿Qué hace?
 
-Un empleado autenticado escanea un código QR dinámico en un checkpoint, por
-ejemplo `EntryExit` o `Cafeteria`. El sistema identifica el punto de marcación,
+Un empleado autenticado escanea un código QR en un checkpoint, por ejemplo
+`EntryExit`, `Cafeteria` o `General`. El sistema identifica el punto de marcación,
 evalúa el estado de la jornada y registra únicamente la acción que corresponde:
 entrada, salida, inicio de almuerzo o fin de almuerzo.
 
@@ -26,7 +26,7 @@ asignaciones especiales, cuentas de usuario y reportes.
 
 ### Funcionalidades principales
 
-- Marcación de entrada, salida e inicio/fin de almuerzo mediante checkpoints y QR dinámicos firmados.
+- Marcación de entrada, salida e inicio/fin de almuerzo mediante checkpoints con QR dinámicos firmados o QR estáticos.
 - Consulta de horas trabajadas, estados diarios y anomalías de asistencia.
 - Gestión de empleados, ausencias, permisos e incidencias.
 - Calendario laboral con días laborables, no laborables y feriados.
@@ -355,16 +355,24 @@ rollback y go-live— está en `docs/production-release.md`.
 
 ## Attendance Capture
 
-La captura operativa usa checkpoints físicos y QR dinámicos. IT administra puntos
-`EntryExit` y `Cafeteria`; cada QR está firmado, expira en 30 segundos por defecto
+La captura operativa usa checkpoints físicos con QR dinámicos o estáticos. IT administra
+puntos `EntryExit`, `Cafeteria` y `General`. Un QR dinámico está firmado y expira en 30 segundos por defecto
 (`CheckpointQr:TokenLifetimeSeconds`) y sólo identifica el checkpoint, nunca al
 empleado. Un User autenticado escanea el QR y la API resuelve sus acciones válidas
 con su asociación Employee/Identity y la zona `America/Lima`.
 
-Las marcas creadas por este flujo registran `Source=DynamicQr` y el `CheckpointId`.
-La protección anti-replay es en memoria por token y empleado, apropiada para la
-instancia única de intranet prevista. Al reiniciar el servidor se invalidan los QR
-activos; una instalación con varias instancias requerirá almacenamiento compartido.
+Un QR estático es un valor aleatorio asociado al checkpoint. El punto `General` utiliza QR estático.
+La migración `StoreOpaqueStaticCheckpointTokens` reemplaza los códigos estáticos existentes.
+Después de aplicarla, TI debe descargar e imprimir los códigos nuevos.
+
+Las marcaciones registran `DynamicQr` o `StaticQr` y el `CheckpointId`. PostgreSQL
+serializa la validación y guardado por empleado. La reserva del QR dinámico se mantiene
+en memoria por token y empleado durante su vigencia.
+
+Un administrador puede consultar las marcas de un día desde **Asistencia → Ver detalle**,
+registrar una marca manual, corregirla o anularla con un motivo. El historial conserva
+la marca original y la auditoría identifica al administrador. Las evaluaciones y
+reportes usan las marcas vigentes.
 
 ## Base de datos y migrations
 
@@ -398,6 +406,11 @@ cambio que no tenga esas verificaciones correctas.
 dotnet build AttendanceSystem.sln
 dotnet test AttendanceSystem.sln
 ```
+
+Con PostgreSQL instalado localmente, la suite de integración también puede ejecutarse
+sin Docker. Configura `ATTENDANCE_TEST_POSTGRES` con una cadena para un servidor de
+pruebas en loopback y una cuenta con permiso `CREATEDB`. Cada fixture crea y elimina
+su propia base temporal `attendance_tests_<id>`.
 
 ### Frontend
 

@@ -13,10 +13,10 @@ public static class AttendanceCaptureSequence
         if (last == AttendanceMarkType.LunchStart) return [AttendanceMarkType.LunchEnd];
         if (last == AttendanceMarkType.OvertimeStart) return [AttendanceMarkType.OvertimeEnd];
         if (last == AttendanceMarkType.OvertimeEnd) return [AttendanceMarkType.Exit];
+        if (last == AttendanceMarkType.CommissionExit) return checkpointType is CheckpointType.EntryExit or CheckpointType.General ? [AttendanceMarkType.CommissionReturn] : Array.Empty<AttendanceMarkType>();
+        if (last == AttendanceMarkType.OtherExit) return checkpointType is CheckpointType.EntryExit or CheckpointType.General ? [AttendanceMarkType.OtherReturn] : Array.Empty<AttendanceMarkType>();
         if (checkpointType == CheckpointType.General)
             return [AttendanceMarkType.LunchStart, AttendanceMarkType.OvertimeStart, AttendanceMarkType.Exit];
-        if (last == AttendanceMarkType.CommissionExit) return checkpointType == CheckpointType.EntryExit ? [AttendanceMarkType.CommissionReturn] : Array.Empty<AttendanceMarkType>();
-        if (last == AttendanceMarkType.OtherExit) return checkpointType == CheckpointType.EntryExit ? [AttendanceMarkType.OtherReturn] : Array.Empty<AttendanceMarkType>();
         return checkpointType == CheckpointType.Cafeteria
             ? [AttendanceMarkType.LunchStart]
             : [AttendanceMarkType.LunchStart, AttendanceMarkType.CommissionExit, AttendanceMarkType.OtherExit, AttendanceMarkType.Exit];
