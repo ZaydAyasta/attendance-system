@@ -9,5 +9,6 @@ public enum AttendanceSource
     DynamicQr = 2,
     Nfc = 3,
     Mobile = 4,
-    Manual = 5
+    Manual = 5,
+    StaticQr = 6
 }

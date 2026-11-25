@@ -44,6 +44,14 @@ public sealed class AttendanceMarkConfiguration
         builder.Property(x => x.CheckpointId)
             .HasColumnName("checkpoint_id");
 
+        builder.Property(x => x.ManualReason).HasColumnName("manual_reason").HasMaxLength(500);
+        builder.Property(x => x.VoidedAt).HasColumnName("voided_at");
+        builder.Property(x => x.VoidReason).HasColumnName("void_reason").HasMaxLength(500);
+        builder.Property(x => x.ReplacesMarkId).HasColumnName("replaces_mark_id");
+        builder.HasOne<AttendanceMark>().WithMany().HasForeignKey(x => x.ReplacesMarkId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasQueryFilter(x => x.VoidedAt == null);
+
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(x => x.EmployeeId)

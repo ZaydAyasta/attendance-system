@@ -49,15 +49,14 @@ public sealed class CheckpointQrServiceTests
     }
 
     [Fact]
-    public void StaticToken_IsShortAndResolvesItsCheckpointId()
+    public void StaticTokensAreShortOpaqueAndDistinct()
     {
         var service = Create();
-        var checkpointId = Guid.NewGuid();
-        var token = service.CreateStaticToken(checkpointId);
+        var token = service.CreateStaticToken();
 
         Assert.Equal(35, token.Length);
-        Assert.True(service.TryGetStaticCheckpointId(token, out var resolvedId));
-        Assert.Equal(checkpointId, resolvedId);
-        Assert.False(service.TryGetStaticCheckpointId("s1:not-a-guid", out _));
+        Assert.True(service.IsStaticToken(token));
+        Assert.NotEqual(token, service.CreateStaticToken());
+        Assert.False(service.IsStaticToken("s2:not-a-token"));
     }
 }

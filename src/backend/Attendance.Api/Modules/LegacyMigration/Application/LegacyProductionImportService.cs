@@ -12,7 +12,7 @@ namespace Attendance.Api.Modules.LegacyMigration.Application;
 /// </summary>
 public sealed class LegacyProductionImportService(AttendanceDbContext dbContext)
 {
-    private const string SourceSystem = "legacy-supabase-excel-v1";
+    internal const string SourceSystem = "legacy-supabase-excel-v1";
     private const string EmployeeEntityType = "Employee";
     private const string AttendanceMarkEntityType = "AttendanceMark";
 
@@ -24,6 +24,11 @@ public sealed class LegacyProductionImportService(AttendanceDbContext dbContext)
         var marks = ValidateMarks(request.Marks, employees);
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({SourceSystem}, 0))", cancellationToken);
+        }
         var now = DateTimeOffset.UtcNow;
         var employeeIds = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         var createdEmployees = 0;
@@ -88,7 +93,7 @@ public sealed class LegacyProductionImportService(AttendanceDbContext dbContext)
             }
 
             var employeeId = employeeIds[source.EmployeeCode];
-            var existing = await dbContext.AttendanceMarks.SingleOrDefaultAsync(
+            var existing = await dbContext.AttendanceMarks.IgnoreQueryFilters().SingleOrDefaultAsync(
                 item => item.EmployeeId == employeeId &&
                     item.OccurredAt == source.OccurredAt &&
                     item.Type == source.Type &&
@@ -131,6 +136,8 @@ public sealed class LegacyProductionImportService(AttendanceDbContext dbContext)
         {
             throw new InvalidOperationException("The legacy payload must include at least one employee.");
         }
+        if (requestEmployees.Any(item => item is null))
+            throw new InvalidOperationException("The legacy payload contains an empty employee entry.");
 
         var employees = requestEmployees.Select(item => new NormalizedEmployee(
             Required(item.EmployeeCode),
@@ -153,6 +160,8 @@ public sealed class LegacyProductionImportService(AttendanceDbContext dbContext)
         {
             throw new InvalidOperationException("The legacy payload must include at least one attendance mark.");
         }
+        if (requestMarks.Any(item => item is null))
+            throw new InvalidOperationException("The legacy payload contains an empty attendance mark entry.");
 
         var employeeCodes = employees.Select(item => item.EmployeeCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var marks = requestMarks.Select(item =>

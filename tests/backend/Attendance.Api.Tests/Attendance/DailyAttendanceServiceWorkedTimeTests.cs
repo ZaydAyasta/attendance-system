@@ -524,6 +524,10 @@ public sealed class DailyAttendanceServiceWorkedTimeTests
                 mark_type TEXT NOT NULL,
                 source TEXT NOT NULL,
                 checkpoint_id TEXT NULL,
+                manual_reason TEXT NULL,
+                voided_at TEXT NULL,
+                void_reason TEXT NULL,
+                replaces_mark_id TEXT NULL,
                 CONSTRAINT FK_attendance_marks_employees_employee_id
                     FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE RESTRICT
             );

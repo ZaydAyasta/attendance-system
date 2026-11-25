@@ -48,7 +48,7 @@ public sealed class LegacyDestinationImporter(DbContextOptions<AttendanceDbConte
             var mapping = await db.LegacyImportMappings.SingleOrDefaultAsync(x => x.SourceSystem == LegacyImportConstants.SourceSystem && x.EntityType == LegacyImportConstants.AttendanceMarkEntityType && x.LegacyId == source.LegacyId, cancellationToken);
             if (mapping is not null) { skipped++; continue; }
             var employeeId = employeeIds[source.Employee.EmployeeCode];
-            var existing = await db.AttendanceMarks.SingleOrDefaultAsync(x => x.EmployeeId == employeeId && x.OccurredAt == source.OccurredAt && x.Type == source.Source.Type && x.Source == AttendanceSource.LegacyFingerprint && x.CheckpointId == null, cancellationToken);
+            var existing = await db.AttendanceMarks.IgnoreQueryFilters().SingleOrDefaultAsync(x => x.EmployeeId == employeeId && x.OccurredAt == source.OccurredAt && x.Type == source.Source.Type && x.Source == AttendanceSource.LegacyFingerprint && x.CheckpointId == null, cancellationToken);
             if (existing is null)
             {
                 existing = AttendanceMark.Create(employeeId, source.OccurredAt, source.Source.Type, AttendanceSource.LegacyFingerprint, null);

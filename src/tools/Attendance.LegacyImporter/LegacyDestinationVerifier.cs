@@ -25,7 +25,7 @@ public sealed class LegacyDestinationVerifier(DbContextOptions<AttendanceDbConte
         foreach (var mark in plan.Marks)
         {
             if (!markMappings.TryGetValue(mark.LegacyId, out var mapping)) { report.Blockers.Add("An expected attendance mark mapping is missing."); continue; }
-            var exists = await db.AttendanceMarks.AsNoTracking().AnyAsync(x => x.Id == mapping.DestinationId && x.Source == AttendanceSource.LegacyFingerprint && x.CheckpointId == null, cancellationToken);
+            var exists = await db.AttendanceMarks.IgnoreQueryFilters().AsNoTracking().AnyAsync(x => x.Id == mapping.DestinationId && x.Source == AttendanceSource.LegacyFingerprint && x.CheckpointId == null, cancellationToken);
             if (!exists) report.Blockers.Add("An attendance mark mapping is orphaned or has an invalid source/checkpoint.");
         }
         if (mappings.GroupBy(x => (x.EntityType, x.LegacyId)).Any(group => group.Count() > 1)) report.Blockers.Add("Duplicate legacy mappings were found.");

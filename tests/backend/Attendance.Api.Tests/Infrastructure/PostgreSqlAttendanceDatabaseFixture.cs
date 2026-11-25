@@ -1,5 +1,6 @@
 using Attendance.Api.BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -7,17 +8,32 @@ namespace Attendance.Api.Tests.Infrastructure;
 
 public sealed class PostgreSqlAttendanceDatabaseFixture : IAsyncLifetime
 {
+    public const string LocalServerVariable = "ATTENDANCE_TEST_POSTGRES";
     private PostgreSqlContainer? container;
+    private string? localConnectionString;
 
     public string? SkipReason { get; private set; }
 
     public bool IsAvailable => SkipReason is null;
 
-    public string ConnectionString => container?.GetConnectionString()
+    public string ConnectionString => localConnectionString ?? container?.GetConnectionString()
         ?? throw new InvalidOperationException("PostgreSQL container is not available.");
 
     public async Task InitializeAsync()
     {
+        if (Environment.GetEnvironmentVariable(LocalServerVariable) is { Length: > 0 } configuredServer)
+        {
+            var localServer = new NpgsqlConnectionStringBuilder(configuredServer);
+            if (localServer.Host is not ("127.0.0.1" or "localhost" or "::1"))
+                throw new InvalidOperationException($"{LocalServerVariable} requires a loopback PostgreSQL server.");
+
+            localServer.Database = $"attendance_tests_{Guid.NewGuid():N}";
+            localConnectionString = localServer.ConnectionString;
+            await using var database = CreateDbContext();
+            await database.Database.MigrateAsync();
+            return;
+        }
+
         if (!HasContainerRuntime())
         {
             SkipReason =
@@ -53,6 +69,12 @@ public sealed class PostgreSqlAttendanceDatabaseFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (localConnectionString is not null)
+        {
+            await using var database = CreateDbContext();
+            await database.Database.EnsureDeletedAsync();
+        }
+
         if (container is not null)
         {
             await container.DisposeAsync();
@@ -64,7 +86,7 @@ public sealed class PostgreSqlAttendanceDatabaseFixture : IAsyncLifetime
         ThrowIfUnavailable();
 
         var options = new DbContextOptionsBuilder<AttendanceDbContext>()
-            .UseNpgsql(container!.GetConnectionString())
+            .UseNpgsql(ConnectionString)
             .Options;
 
         return new AttendanceDbContext(options);

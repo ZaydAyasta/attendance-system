@@ -23,6 +23,7 @@ using Attendance.Api.Modules.Auditing.Endpoints;
 using Attendance.Api.Modules.LegacyMigration.Application;
 using Attendance.Api.Modules.LegacyMigration.Endpoints;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -33,19 +34,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.OpenApi;
 using Npgsql;
 using Scalar.AspNetCore;
-using PdfSharp.Fonts;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// PDFsharp Core 6.2 does not resolve platform fonts unless this is enabled
-// before the first XFont is created. The application is deployed on Windows.
-if (OperatingSystem.IsWindows())
-{
-    GlobalFontSettings.UseWindowsFontsUnderWindows = true;
-}
 
 if (builder.Environment.IsProduction())
 {
@@ -266,6 +259,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseAntiforgery();
+app.Use(async (context, next) =>
+{
+    // JSON endpoint handlers do not automatically reject a failed antiforgery validation.
+    if (context.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false })
+    {
+        await Results.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: "No se pudo validar la solicitud.").ExecuteAsync(context);
+        return;
+    }
+
+    await next(context);
+});
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
@@ -284,7 +290,7 @@ if (app.Configuration.GetValue<bool>("LegacyImport:Enabled"))
     await using var legacyImportScope = app.Services.CreateAsyncScope();
     var legacyImportDbContext = legacyImportScope.ServiceProvider.GetRequiredService<AttendanceDbContext>();
     var importAlreadyCompleted = await legacyImportDbContext.LegacyImportMappings
-        .AnyAsync(mapping => mapping.SourceSystem == "legacy-supabase-excel-v1");
+        .AnyAsync(mapping => mapping.SourceSystem == LegacyProductionImportService.SourceSystem);
     if (!importAlreadyCompleted)
     {
         app.MapLegacyProductionImportEndpoints();

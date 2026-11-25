@@ -9,7 +9,8 @@ public sealed class RequiresContainerRuntimeFactAttribute : FactAttribute
 
     public RequiresContainerRuntimeFactAttribute()
     {
-        if (!HasContainerRuntime())
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PostgreSqlAttendanceDatabaseFixture.LocalServerVariable))
+            && !HasContainerRuntime())
         {
             Skip = SkipMessage;
         }

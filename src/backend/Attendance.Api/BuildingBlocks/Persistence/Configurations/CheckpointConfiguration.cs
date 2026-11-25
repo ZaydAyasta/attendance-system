@@ -19,5 +19,6 @@ public sealed class CheckpointConfiguration : IEntityTypeConfiguration<Checkpoin
         builder.Property(x => x.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(x => x.Version).HasColumnName("xmin").IsRowVersion();
         builder.HasIndex(x => x.Code).IsUnique();
+        builder.HasIndex(x => x.StaticQrToken).IsUnique();
     }
 }

@@ -17,6 +17,13 @@ const events = ref<AuditEvent[]>([]), loading = ref(false), error = ref<string |
 const filters = reactive({ from: '', to: '', action: '', entityType: '', page: 1, pageSize: 50 })
 const actionLabels: Record<string, string> = { CreateEmployee: 'Empleado creado', UpdateEmployee: 'Empleado actualizado', ActivateEmployee: 'Empleado activado', DeactivateEmployee: 'Empleado desactivado', CreateAbsence: 'Ausencia registrada', UpdateAbsence: 'Ausencia actualizada', CancelAbsence: 'Ausencia cancelada', CreateWorkCalendarDay: 'Día calendario creado', UpdateWorkCalendarDay: 'Día calendario actualizado', DeleteWorkCalendarDay: 'Día calendario eliminado', BulkConfigureWorkCalendar: 'Calendario configurado', CreateWorkAssignment: 'Asignación creada', UpdateWorkAssignment: 'Asignación actualizada', CancelWorkAssignment: 'Asignación cancelada', CreateCheckpoint: 'Checkpoint creado', UpdateCheckpoint: 'Checkpoint actualizado', ActivateCheckpoint: 'Checkpoint activado', DeactivateCheckpoint: 'Checkpoint desactivado', CreateUser: 'Cuenta creada', UpdateUserRole: 'Rol de cuenta actualizado', ActivateUser: 'Cuenta activada', DeactivateUser: 'Cuenta desactivada', ResetUserPassword: 'Contraseña restablecida' }
 const entityLabels: Record<string, string> = { Employee: 'Empleado', Absence: 'Ausencia', WorkCalendarDay: 'Calendario laboral', EmployeeWorkAssignment: 'Asignación', Checkpoint: 'Checkpoint', ApplicationUser: 'Cuenta de usuario' }
+Object.assign(actionLabels, {
+  CreateManualAttendanceMark: 'Marcación manual registrada',
+  CorrectAttendanceMark: 'Marcación corregida',
+  VoidAttendanceMark: 'Marcación anulada',
+  ImportLegacyAttendance: 'Asistencia histórica importada',
+})
+Object.assign(entityLabels, { AttendanceMark: 'Marcación', LegacyImport: 'Importación histórica' })
 const actionOptions = computed(() => Object.entries(actionLabels).map(([value, label]) => ({ value, label })))
 const entityOptions = computed(() => Object.entries(entityLabels).map(([value, label]) => ({ value, label })))
 function actionLabel(value: string): string { return actionLabels[value] ?? value }

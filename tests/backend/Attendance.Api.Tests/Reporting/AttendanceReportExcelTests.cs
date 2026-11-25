@@ -8,6 +8,22 @@ namespace Attendance.Api.Tests.Reporting;
 public sealed class AttendanceReportExcelTests
 {
     [Fact]
+    public void Pdf_EmbedsFontsForSpanishText()
+    {
+        var date = new DateOnly(2026, 10, 1);
+        var report = new AttendanceReportResponse(date, date, null,
+            new AttendanceReportSummary(1, 1, 1, 0, 0, 480),
+            [new AttendanceReportRow(Guid.NewGuid(), "EMP-1", "María Díaz", date, "Present", 480, 60, [], null)]);
+
+        var bytes = new AttendanceReportService(null!, null!, null!, null!).Pdf(report);
+
+        Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString(bytes.AsSpan(0, 5)));
+        using var document = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(bytes));
+        Assert.Equal(1, document.PageCount);
+        Assert.Contains("/FontFile2", System.Text.Encoding.Latin1.GetString(bytes), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Excel_IncludesNakamaLogoAndKeepsTheAttendanceTableBelowTheHeader()
     {
         var report = new AttendanceReportResponse(

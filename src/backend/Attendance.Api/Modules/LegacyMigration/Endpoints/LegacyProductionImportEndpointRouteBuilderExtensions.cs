@@ -30,7 +30,7 @@ public static class LegacyProductionImportEndpointRouteBuilderExtensions
     {
         try
         {
-            audit.Prepare(context.User, "ImportLegacyAttendance", "LegacyImport", metadata: new
+            audit.Prepare(context.User, "ImportLegacyAttendance", "LegacyImport", LegacyProductionImportService.SourceSystem, new
             {
                 employeeCount = request.Employees?.Count ?? 0,
                 markCount = request.Marks?.Count ?? 0

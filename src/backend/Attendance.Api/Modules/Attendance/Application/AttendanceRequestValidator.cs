@@ -21,12 +21,12 @@ public static class AttendanceRequestValidator
     public static AttendanceValidationResult<DailyAttendanceQuery> ValidateDate(
         DateOnly date)
     {
-        if (date == default)
+        if (date == default || date == DateOnly.MaxValue)
         {
             return AttendanceValidationResult<DailyAttendanceQuery>.Failure(
                 new Dictionary<string, string[]>
                 {
-                    ["date"] = ["Date must be a non-default value."]
+                    ["date"] = ["Date must be after 0001-01-01 and before 9999-12-31."]
                 });
         }
 
@@ -56,6 +56,10 @@ public static class AttendanceRequestValidator
         else if (to.Value == default)
         {
             errors["to"] = ["'to' must be a non-default date."];
+        }
+        else if (to.Value == DateOnly.MaxValue)
+        {
+            errors["to"] = ["'to' must be before 9999-12-31."];
         }
 
         if (from.HasValue
